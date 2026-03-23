@@ -9,12 +9,14 @@ import {
 } from "./auth.types.js";
 import {
   BadRequestError,
+  NotFoundError,
   UserNotAuthenticatedError,
 } from "../../common/errors/errors.js";
 import type { JwtPayload } from "jsonwebtoken";
 import jwt from "jsonwebtoken";
 import { config } from "../../config/config.js";
 import crypto from "crypto";
+import { Request } from "express";
 
 type payload = Pick<JwtPayload, "iss" | "sub" | "iat" | "exp">;
 
@@ -50,6 +52,18 @@ export const authService = {
       throw new UserNotAuthenticatedError("No user ID in token");
     }
     return decoded.sub;
+  },
+
+  getBearerToken: (req: Request): string => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      throw new UserNotAuthenticatedError("No authorization header");
+    }
+    const [type, token] = authHeader.split(" ");
+    if (type !== "Bearer") {
+      throw new UserNotAuthenticatedError("Invalid authorization type");
+    }
+    return token;
   },
 
   makeRefreshToken: () => {
@@ -103,5 +117,15 @@ export const authService = {
     }
 
     return toLoginUserResponse(existingUser, accessToken, refreshToken);
+  },
+
+  getMe: async (req: Request): Promise<RegisterUserResponse> => {
+    const token = authService.getBearerToken(req);
+    const userId = authService.validateJWT(token, config.jwt.secret);
+    const user = await authRepository.getUserById(userId);
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+    return toRegisterUserResponse(user);
   },
 };

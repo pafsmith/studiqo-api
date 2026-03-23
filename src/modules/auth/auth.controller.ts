@@ -20,4 +20,12 @@ export const authController = {
       next(error);
     }
   },
+  async getMe(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = await authService.getMe(req);
+      respondWithJSON(res, 200, user);
+    } catch (error) {
+      next(error);
+    }
+  },
 };
