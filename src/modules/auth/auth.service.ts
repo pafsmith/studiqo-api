@@ -13,6 +13,7 @@ import {
 } from "../../common/errors/errors.js";
 import type { JwtPayload } from "jsonwebtoken";
 import jwt from "jsonwebtoken";
+import { config } from "../../config/config.js";
 
 type payload = Pick<JwtPayload, "iss" | "sub" | "iat" | "exp">;
 
@@ -81,6 +82,11 @@ export const authService = {
     if (!isPasswordValid) {
       throw new BadRequestError("Invalid email or password");
     }
-    return toLoginUserResponse(existingUser);
+    const accessToken = authService.makeJWT(
+      existingUser.id,
+      config.jwt.defaultDuration,
+      config.jwt.secret,
+    );
+    return toLoginUserResponse(existingUser, accessToken);
   },
 };
