@@ -11,3 +11,4 @@ authRoutes.post(
   authController.registerUser,
 );
 authRoutes.post("/login", validate(loginSchema), authController.loginUser);
+authRoutes.get("/me", authController.getMe);
