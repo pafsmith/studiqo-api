@@ -18,4 +18,5 @@ export interface LoginUserResponse {
   id: string;
   email: string;
   createdAt: Date;
+  token: string;
 }

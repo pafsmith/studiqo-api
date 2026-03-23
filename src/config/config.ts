@@ -1,11 +1,12 @@
-import dotenv from 'dotenv';
-import { MigrationConfig } from 'drizzle-orm/migrator';
+import dotenv from "dotenv";
+import { MigrationConfig } from "drizzle-orm/migrator";
 
 dotenv.config();
 
 type Config = {
   api: APIConfig;
   db: DBConfig;
+  jwt: JWTConfig;
 };
 
 type APIConfig = {
@@ -15,6 +16,11 @@ type APIConfig = {
 type DBConfig = {
   url: string;
   migrationConfig: MigrationConfig;
+};
+
+type JWTConfig = {
+  secret: string;
+  defaultDuration: number;
 };
 
 process.loadEnvFile();
@@ -27,11 +33,9 @@ function envOrThrow(key: string) {
   return value;
 }
 
-
 const migrationConfig: MigrationConfig = {
   migrationsFolder: "./src/db/migrations",
 };
-
 
 export const config: Config = {
   api: {
@@ -40,5 +44,9 @@ export const config: Config = {
   db: {
     url: envOrThrow("DB_URL"),
     migrationConfig,
+  },
+  jwt: {
+    secret: envOrThrow("JWT_SECRET"),
+    defaultDuration: Number(envOrThrow("JWT_DEFAULT_DURATION")),
   },
 };
