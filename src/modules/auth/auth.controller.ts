@@ -11,5 +11,13 @@ async registerUser(req: Request, res: Response, next: NextFunction) {
     } catch (error) {
         next(error);
     }
+},
+async loginUser(req: Request, res: Response, next: NextFunction) {
+    try {
+        const user = await authService.loginUser(req.body);
+        respondWithJSON(res, 200, user);
+    } catch (error) {
+        next(error);
+    }
 }
 }

@@ -1,7 +1,7 @@
 import argon2 from "argon2";
 import { authRepository } from "./auth.repository.js";
-import { toRegisterUserResponse } from "./auth.mapper.js";
-import { RegisterUserRequest, RegisterUserResponse } from "./auth.types.js";
+import { toLoginUserResponse, toRegisterUserResponse } from "./auth.mapper.js";
+import { LoginUserRequest, LoginUserResponse, RegisterUserRequest, RegisterUserResponse } from "./auth.types.js";
 import { BadRequestError } from "../../common/errors/errors.js";
 
 
@@ -30,4 +30,16 @@ export const authService = {
         });
         return toRegisterUserResponse(newUser);
     },
+    loginUser: async (user: LoginUserRequest): Promise<LoginUserResponse> => {
+        const email = user.email.trim().toLowerCase();
+        const existingUser = await authRepository.getUserByEmail(email);
+        if (!existingUser) {
+            throw new BadRequestError("Invalid email or password");
+        }
+        const isPasswordValid = await authService.checkPasswordHash(user.password, existingUser.hasedPassword);
+        if (!isPasswordValid) {
+            throw new BadRequestError("Invalid email or password");
+        }
+        return toLoginUserResponse(existingUser);
+    }
 }
