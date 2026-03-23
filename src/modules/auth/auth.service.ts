@@ -7,7 +7,14 @@ import {
   RegisterUserRequest,
   RegisterUserResponse,
 } from "./auth.types.js";
-import { BadRequestError } from "../../common/errors/errors.js";
+import {
+  BadRequestError,
+  UserNotAuthenticatedError,
+} from "../../common/errors/errors.js";
+import type { JwtPayload } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
+
+type payload = Pick<JwtPayload, "iss" | "sub" | "iat" | "exp">;
 
 export const authService = {
   hashPassword: async (password: string) => {
@@ -15,6 +22,32 @@ export const authService = {
   },
   checkPasswordHash: async (password: string, hash: string) => {
     return await argon2.verify(hash, password);
+  },
+
+  makeJWT: (userId: string, expiresIn: number, secret: string): string => {
+    const iat = Math.floor(Date.now() / 1000);
+    const payload: payload = {
+      iss: "studiqo",
+      sub: userId,
+      iat,
+      exp: iat + expiresIn,
+    };
+    return jwt.sign(payload, secret, { algorithm: "HS256" });
+  },
+  validateJWT: (tokenString: string, secret: string): string => {
+    let decoded: payload;
+    try {
+      decoded = jwt.verify(tokenString, secret) as JwtPayload;
+    } catch (e) {
+      throw new UserNotAuthenticatedError("Invalid token");
+    }
+    if (decoded.iss !== "studiqo") {
+      throw new UserNotAuthenticatedError("Invalid issuer");
+    }
+    if (!decoded.sub) {
+      throw new UserNotAuthenticatedError("No user ID in token");
+    }
+    return decoded.sub;
   },
 
   registerUser: async (
