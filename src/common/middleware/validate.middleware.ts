@@ -15,7 +15,7 @@ export function validate(schema: ZodObject<any>) {
     } catch (error) {
       if (error instanceof ZodError) {
         return next(
-          new BadRequestError("Validation failed: " + error.issues[0]?.message)
+          new BadRequestError("Validation failed: " + error.issues[0]?.message),
         );
       }
 

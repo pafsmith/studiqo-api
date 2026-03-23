@@ -1,5 +1,10 @@
 import { NextFunction, Request, Response } from "express";
-import { BadRequestError, NotFoundError, UserForbiddenError, UserNotAuthenticatedError } from "../errors/errors.js";
+import {
+  BadRequestError,
+  NotFoundError,
+  UserForbiddenError,
+  UserNotAuthenticatedError,
+} from "../errors/errors.js";
 import { respondWithError } from "../utils/json.js";
 
 export function errorMiddleWare(
