@@ -5,7 +5,7 @@ import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { apiRouter } from "./routes/index.js";
-import { errorMiddleware } from "./common/middleware/error.middleware.js";
+import { errorMiddleWare } from "./common/middleware/error.middleware.js";
 import { config } from "./config/config.js";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -23,4 +23,4 @@ app.use(express.json());
 
 app.use("/api", apiRouter);
 
-app.use(errorMiddleware);
+app.use(errorMiddleWare);
