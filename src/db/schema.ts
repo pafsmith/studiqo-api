@@ -21,7 +21,7 @@ export const refreshTokens = pgTable("refresh_tokens", {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
-  expiresAt: timestamp("expires_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
   revokedAt: timestamp("revoked_at"),
 });
 

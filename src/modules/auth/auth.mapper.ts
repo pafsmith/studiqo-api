@@ -1,5 +1,9 @@
 import { NewUser } from "../../db/schema.js";
-import { LoginUserResponse, RegisterUserResponse } from "./auth.types.js";
+import {
+  LoginUserResponse,
+  RefreshTokenResponse,
+  RegisterUserResponse,
+} from "./auth.types.js";
 
 export function toRegisterUserResponse(user: NewUser): RegisterUserResponse {
   return {
@@ -20,5 +24,11 @@ export function toLoginUserResponse(
     createdAt: user.createdAt as Date,
     token: token,
     refreshToken: refreshToken,
+  };
+}
+
+export function toRefreshTokenResponse(token: string): RefreshTokenResponse {
+  return {
+    token: token,
   };
 }
