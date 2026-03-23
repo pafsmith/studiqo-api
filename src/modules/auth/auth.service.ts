@@ -14,6 +14,7 @@ import {
 import type { JwtPayload } from "jsonwebtoken";
 import jwt from "jsonwebtoken";
 import { config } from "../../config/config.js";
+import crypto from "crypto";
 
 type payload = Pick<JwtPayload, "iss" | "sub" | "iat" | "exp">;
 
@@ -49,6 +50,10 @@ export const authService = {
       throw new UserNotAuthenticatedError("No user ID in token");
     }
     return decoded.sub;
+  },
+
+  makeRefreshToken: () => {
+    return crypto.randomBytes(32).toString("hex");
   },
 
   registerUser: async (
@@ -87,6 +92,16 @@ export const authService = {
       config.jwt.defaultDuration,
       config.jwt.secret,
     );
-    return toLoginUserResponse(existingUser, accessToken);
+
+    const refreshToken = authService.makeRefreshToken();
+    const newRefreshToken = await authRepository.createRefreshToken({
+      userId: existingUser.id,
+      token: refreshToken,
+    });
+    if (!newRefreshToken) {
+      throw new BadRequestError("Failed to create refresh token");
+    }
+
+    return toLoginUserResponse(existingUser, accessToken, refreshToken);
   },
 };
