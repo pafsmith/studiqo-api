@@ -11,5 +11,6 @@ authRoutes.post(
   authController.registerUser,
 );
 authRoutes.post("/login", validate(loginSchema), authController.loginUser);
+authRoutes.post("/logout", authController.logoutUser);
 authRoutes.get("/me", authController.getMe);
 authRoutes.post("/refresh", authController.refreshToken);

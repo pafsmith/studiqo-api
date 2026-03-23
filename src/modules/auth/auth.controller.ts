@@ -36,4 +36,12 @@ export const authController = {
       next(error);
     }
   },
+  async logoutUser(req: Request, res: Response, next: NextFunction) {
+    try {
+      await authService.logoutUser(req);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  },
 };

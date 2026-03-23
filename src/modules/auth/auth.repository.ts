@@ -54,4 +54,12 @@ export const authRepository = {
       .limit(1);
     return result;
   },
+  revokeRefreshToken: async (token: string) => {
+    await db
+      .update(refreshTokens)
+      .set({ revokedAt: new Date() })
+      .where(
+        and(eq(refreshTokens.token, token), isNull(refreshTokens.revokedAt)),
+      );
+  },
 };
