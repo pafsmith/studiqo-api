@@ -9,7 +9,6 @@ export function toRegisterUserResponse(user: NewUser): RegisterUserResponse {
   };
 }
 
-
 export function toLoginUserResponse(user: NewUser): LoginUserResponse {
   return {
     id: user.id as string,

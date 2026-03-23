@@ -15,7 +15,6 @@ await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
 export const app = express();
 
-
 app.use(helmet());
 app.use(cors());
 app.use(morgan("dev"));
