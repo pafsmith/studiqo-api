@@ -1,9 +1,14 @@
 import argon2 from "argon2";
 import { authRepository } from "./auth.repository.js";
-import { toLoginUserResponse, toRegisterUserResponse } from "./auth.mapper.js";
+import {
+  toLoginUserResponse,
+  toRefreshTokenResponse,
+  toRegisterUserResponse,
+} from "./auth.mapper.js";
 import {
   LoginUserRequest,
   LoginUserResponse,
+  RefreshTokenResponse,
   RegisterUserRequest,
   RegisterUserResponse,
 } from "./auth.types.js";
@@ -17,6 +22,7 @@ import jwt from "jsonwebtoken";
 import { config } from "../../config/config.js";
 import crypto from "crypto";
 import { Request } from "express";
+import { refreshTokens } from "../../db/schema.js";
 
 type payload = Pick<JwtPayload, "iss" | "sub" | "iat" | "exp">;
 
@@ -111,6 +117,7 @@ export const authService = {
     const newRefreshToken = await authRepository.createRefreshToken({
       userId: existingUser.id,
       token: refreshToken,
+      expiresAt: new Date(Date.now() + config.jwt.defaultDuration * 1000),
     });
     if (!newRefreshToken) {
       throw new BadRequestError("Failed to create refresh token");
@@ -127,5 +134,19 @@ export const authService = {
       throw new NotFoundError("User not found");
     }
     return toRegisterUserResponse(user);
+  },
+  refreshToken: async (req: Request): Promise<RefreshTokenResponse> => {
+    const token = authService.getBearerToken(req);
+    const result = await authRepository.getUserfromRefreshToken(token);
+    if (!result) {
+      throw new NotFoundError("Refresh token not found");
+    }
+    const user = result.user;
+    const accessToken = authService.makeJWT(
+      user.id,
+      config.jwt.defaultDuration,
+      config.jwt.secret,
+    );
+    return toRefreshTokenResponse(accessToken);
   },
 };

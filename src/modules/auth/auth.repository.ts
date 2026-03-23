@@ -5,7 +5,7 @@ import {
   refreshTokens,
   users,
 } from "../../db/schema.js";
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 
 export const authRepository = {
   createUser: async (user: NewUser) => {
@@ -37,6 +37,21 @@ export const authRepository = {
       .insert(refreshTokens)
       .values(refreshToken)
       .returning();
+    return result;
+  },
+  getUserfromRefreshToken: async (token: string) => {
+    const [result] = await db
+      .select({ user: users })
+      .from(users)
+      .innerJoin(refreshTokens, eq(users.id, refreshTokens.userId))
+      .where(
+        and(
+          eq(refreshTokens.token, token),
+          isNull(refreshTokens.revokedAt),
+          gt(refreshTokens.expiresAt, new Date()),
+        ),
+      )
+      .limit(1);
     return result;
   },
 };

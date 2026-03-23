@@ -28,4 +28,12 @@ export const authController = {
       next(error);
     }
   },
+  async refreshToken(req: Request, res: Response, next: NextFunction) {
+    try {
+      const token = await authService.refreshToken(req);
+      respondWithJSON(res, 200, token);
+    } catch (error) {
+      next(error);
+    }
+  },
 };

@@ -21,3 +21,8 @@ export interface LoginUserResponse {
   token: string;
   refreshToken: string;
 }
+
+export interface RefreshTokenResponse {
+  token: string;
+  expiresAt: Date;
+}
