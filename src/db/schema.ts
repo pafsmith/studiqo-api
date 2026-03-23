@@ -12,3 +12,17 @@ export const users = pgTable("users", {
 });
 
 export type NewUser = typeof users.$inferInsert;
+
+export const refreshTokens = pgTable("refresh_tokens", {
+  token: varchar("token", { length: 256 }).primaryKey().notNull(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at")
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+  expiresAt: timestamp("expires_at").notNull().defaultNow(),
+  revokedAt: timestamp("revoked_at"),
+});
+
+export type NewRefreshToken = typeof refreshTokens.$inferInsert;
