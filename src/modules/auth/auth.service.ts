@@ -149,4 +149,9 @@ export const authService = {
     );
     return toRefreshTokenResponse(accessToken);
   },
+
+  logoutUser: async (req: Request): Promise<void> => {
+    const refreshToken = authService.getBearerToken(req);
+    await authRepository.revokeRefreshToken(refreshToken);
+  },
 };
