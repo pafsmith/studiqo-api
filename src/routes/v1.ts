@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authRoutes } from "../modules/auth/auth.routes.js";
+import { studentsRoutes } from "../modules/students/students.routes.js";
 
 export const v1Router = Router();
 
@@ -8,3 +9,4 @@ v1Router.get("/health", (_req, res) => {
 });
 
 v1Router.use("/auth", authRoutes);
+v1Router.use("/students", studentsRoutes);
