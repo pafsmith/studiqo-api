@@ -1,7 +1,7 @@
 import { Student } from "../../db/schema.js";
-import { CreateStudentResponse } from "./students.types.js";
+import { StudentResponse } from "./students.types.js";
 
-export function toStudentResponse(student: Student): CreateStudentResponse {
+export function toStudentResponse(student: Student): StudentResponse {
     return {
         id: student.id,
         parentId: student.parentId,

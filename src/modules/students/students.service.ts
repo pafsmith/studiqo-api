@@ -8,9 +8,31 @@ import { authRepository } from "../auth/auth.repository.js";
 import { authService } from "../auth/auth.service.js";
 import { toStudentResponse } from "./students.mapper.js";
 import { studentsRepository } from "./students.repository.js";
-import { CreateStudentRequest, CreateStudentResponse } from "./students.types.js";
+import {
+  CreateStudentRequest,
+  CreateStudentResponse,
+  StudentResponse,
+} from "./students.types.js";
 
 export const studentsService = {
+  listStudents: async (req: Request): Promise<StudentResponse[]> => {
+    const token = authService.getBearerToken(req);
+    const userId = authService.validateJWT(token, config.jwt.secret);
+    const actor = await authRepository.getUserById(userId);
+    if (!actor) {
+      throw new NotFoundError("User not found");
+    }
+    if (actor.role === "admin") {
+      const rows = await studentsRepository.findAllStudents();
+      return rows.map(toStudentResponse);
+    }
+    if (actor.role === "parent") {
+      const rows = await studentsRepository.findStudentsByParentId(actor.id);
+      return rows.map(toStudentResponse);
+    }
+    throw new UserForbiddenError("Only admins and parents can list students");
+  },
+
   createStudent: async (
     req: Request,
     student: CreateStudentRequest,
