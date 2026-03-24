@@ -24,12 +24,10 @@ describe("authService password helpers", () => {
   it("hashes and verifies a password", async () => {
     const hash = await authService.hashPassword("my-Secret1!");
     expect(hash).not.toBe("my-Secret1!");
-    await expect(
-      authService.checkPasswordHash("my-Secret1!", hash),
-    ).resolves.toBe(true);
-    await expect(
-      authService.checkPasswordHash("wrong", hash),
-    ).resolves.toBe(false);
+    await expect(authService.checkPasswordHash("my-Secret1!", hash)).resolves.toBe(
+      true,
+    );
+    await expect(authService.checkPasswordHash("wrong", hash)).resolves.toBe(false);
   });
 });
 
@@ -60,11 +58,9 @@ describe("authService JWT helpers", () => {
 
   it("rejects tokens without sub", () => {
     const iat = Math.floor(Date.now() / 1000);
-    const bad = jwt.sign(
-      { iss: "studiqo", iat, exp: iat + 60 },
-      secret,
-      { algorithm: "HS256" },
-    );
+    const bad = jwt.sign({ iss: "studiqo", iat, exp: iat + 60 }, secret, {
+      algorithm: "HS256",
+    });
     expect(() => authService.validateJWT(bad, secret)).toThrow(
       UserNotAuthenticatedError,
     );
@@ -81,18 +77,14 @@ describe("authService getBearerToken", () => {
 
   it("throws when header is missing", () => {
     const req = { headers: {} } as unknown as Request;
-    expect(() => authService.getBearerToken(req)).toThrow(
-      UserNotAuthenticatedError,
-    );
+    expect(() => authService.getBearerToken(req)).toThrow(UserNotAuthenticatedError);
   });
 
   it("throws when scheme is not Bearer", () => {
     const req = {
       headers: { authorization: "Basic x" },
     } as unknown as Request;
-    expect(() => authService.getBearerToken(req)).toThrow(
-      UserNotAuthenticatedError,
-    );
+    expect(() => authService.getBearerToken(req)).toThrow(UserNotAuthenticatedError);
   });
 });
 
@@ -136,9 +128,7 @@ describe("authService registerUser", () => {
       password: "Aa1!aaaa",
     });
 
-    expect(authRepository.getUserByEmail).toHaveBeenCalledWith(
-      "user@example.com",
-    );
+    expect(authRepository.getUserByEmail).toHaveBeenCalledWith("user@example.com");
     expect(authRepository.createUser).toHaveBeenCalledWith(
       expect.objectContaining({
         email: "User@Example.com",
@@ -211,9 +201,7 @@ describe("authService loginUser", () => {
 
     expect(out.token).toBeTruthy();
     expect(out.refreshToken).toBeTruthy();
-    expect(authService.validateJWT(out.token, config.jwt.secret)).toBe(
-      "user-uuid",
-    );
+    expect(authService.validateJWT(out.token, config.jwt.secret)).toBe("user-uuid");
   });
 });
 

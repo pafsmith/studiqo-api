@@ -23,7 +23,6 @@ import { config } from "../../config/config.js";
 import crypto from "crypto";
 import { Request } from "express";
 import type { User } from "../../db/schema.js";
-import { refreshTokens } from "../../db/schema.js";
 
 type payload = Pick<JwtPayload, "iss" | "sub" | "iat" | "exp">;
 
@@ -49,7 +48,7 @@ export const authService = {
     let decoded: payload;
     try {
       decoded = jwt.verify(tokenString, secret) as JwtPayload;
-    } catch (e) {
+    } catch {
       throw new UserNotAuthenticatedError("Invalid token");
     }
     if (decoded.iss !== "studiqo") {
@@ -77,9 +76,7 @@ export const authService = {
     return crypto.randomBytes(32).toString("hex");
   },
 
-  registerUser: async (
-    user: RegisterUserRequest,
-  ): Promise<RegisterUserResponse> => {
+  registerUser: async (user: RegisterUserRequest): Promise<RegisterUserResponse> => {
     const email = user.email.trim().toLowerCase();
 
     const existingUser = await authRepository.getUserByEmail(email);

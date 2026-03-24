@@ -1,10 +1,5 @@
 import { db } from "../../db/index.js";
-import {
-  NewRefreshToken,
-  NewUser,
-  refreshTokens,
-  users,
-} from "../../db/schema.js";
+import { NewRefreshToken, NewUser, refreshTokens, users } from "../../db/schema.js";
 import { and, eq, gt, isNull } from "drizzle-orm";
 
 export const authRepository = {
@@ -25,18 +20,11 @@ export const authRepository = {
     return result;
   },
   getUserById: async (id: string) => {
-    const [result] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, id))
-      .limit(1);
+    const [result] = await db.select().from(users).where(eq(users.id, id)).limit(1);
     return result;
   },
   createRefreshToken: async (refreshToken: NewRefreshToken) => {
-    const [result] = await db
-      .insert(refreshTokens)
-      .values(refreshToken)
-      .returning();
+    const [result] = await db.insert(refreshTokens).values(refreshToken).returning();
     return result;
   },
   getUserfromRefreshToken: async (token: string) => {
@@ -58,8 +46,6 @@ export const authRepository = {
     await db
       .update(refreshTokens)
       .set({ revokedAt: new Date() })
-      .where(
-        and(eq(refreshTokens.token, token), isNull(refreshTokens.revokedAt)),
-      );
+      .where(and(eq(refreshTokens.token, token), isNull(refreshTokens.revokedAt)));
   },
 };

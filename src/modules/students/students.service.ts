@@ -1,9 +1,6 @@
 import { Request } from "express";
 import { requireUser } from "../../common/middleware/authenticate.middleware.js";
-import {
-  NotFoundError,
-  UserForbiddenError,
-} from "../../common/errors/errors.js";
+import { NotFoundError, UserForbiddenError } from "../../common/errors/errors.js";
 import { authRepository } from "../auth/auth.repository.js";
 import { toStudentResponse } from "./students.mapper.js";
 import { studentsRepository } from "./students.repository.js";

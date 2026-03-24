@@ -9,11 +9,7 @@ import type { User } from "../../db/schema.js";
  * Validates Bearer JWT, loads the user from the DB, and sets `req.user`.
  * Must be registered before handlers that call `requireUser(req)`.
  */
-export async function authenticate(
-  req: Request,
-  _res: Response,
-  next: NextFunction,
-) {
+export async function authenticate(req: Request, _res: Response, next: NextFunction) {
   try {
     const token = authService.getBearerToken(req);
     const userId = authService.validateJWT(token, config.jwt.secret);
