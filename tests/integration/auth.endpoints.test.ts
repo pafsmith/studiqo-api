@@ -5,12 +5,7 @@ import { eq } from "drizzle-orm";
 import { app } from "../../src/app.js";
 import { db } from "../../src/db/index.js";
 import { users } from "../../src/db/schema.js";
-import {
-  loginUser,
-  paths,
-  registerUser,
-  validPassword,
-} from "./helpers.js";
+import { loginUser, paths, registerUser, validPassword } from "./helpers.js";
 
 describe("POST /api/v1/auth/register", () => {
   const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;

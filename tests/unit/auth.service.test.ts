@@ -5,7 +5,6 @@ import { authService } from "../../src/modules/auth/auth.service.js";
 import { authRepository } from "../../src/modules/auth/auth.repository.js";
 import {
   BadRequestError,
-  NotFoundError,
   UserNotAuthenticatedError,
 } from "../../src/common/errors/errors.js";
 import { config } from "../../src/config/config.js";
@@ -25,12 +24,10 @@ describe("authService password helpers", () => {
   it("hashes and verifies a password", async () => {
     const hash = await authService.hashPassword("my-Secret1!");
     expect(hash).not.toBe("my-Secret1!");
-    await expect(
-      authService.checkPasswordHash("my-Secret1!", hash),
-    ).resolves.toBe(true);
-    await expect(
-      authService.checkPasswordHash("wrong", hash),
-    ).resolves.toBe(false);
+    await expect(authService.checkPasswordHash("my-Secret1!", hash)).resolves.toBe(
+      true,
+    );
+    await expect(authService.checkPasswordHash("wrong", hash)).resolves.toBe(false);
   });
 });
 
@@ -61,11 +58,9 @@ describe("authService JWT helpers", () => {
 
   it("rejects tokens without sub", () => {
     const iat = Math.floor(Date.now() / 1000);
-    const bad = jwt.sign(
-      { iss: "studiqo", iat, exp: iat + 60 },
-      secret,
-      { algorithm: "HS256" },
-    );
+    const bad = jwt.sign({ iss: "studiqo", iat, exp: iat + 60 }, secret, {
+      algorithm: "HS256",
+    });
     expect(() => authService.validateJWT(bad, secret)).toThrow(
       UserNotAuthenticatedError,
     );
@@ -82,18 +77,14 @@ describe("authService getBearerToken", () => {
 
   it("throws when header is missing", () => {
     const req = { headers: {} } as unknown as Request;
-    expect(() => authService.getBearerToken(req)).toThrow(
-      UserNotAuthenticatedError,
-    );
+    expect(() => authService.getBearerToken(req)).toThrow(UserNotAuthenticatedError);
   });
 
   it("throws when scheme is not Bearer", () => {
     const req = {
       headers: { authorization: "Basic x" },
     } as unknown as Request;
-    expect(() => authService.getBearerToken(req)).toThrow(
-      UserNotAuthenticatedError,
-    );
+    expect(() => authService.getBearerToken(req)).toThrow(UserNotAuthenticatedError);
   });
 });
 
@@ -137,9 +128,7 @@ describe("authService registerUser", () => {
       password: "Aa1!aaaa",
     });
 
-    expect(authRepository.getUserByEmail).toHaveBeenCalledWith(
-      "user@example.com",
-    );
+    expect(authRepository.getUserByEmail).toHaveBeenCalledWith("user@example.com");
     expect(authRepository.createUser).toHaveBeenCalledWith(
       expect.objectContaining({
         email: "User@Example.com",
@@ -212,56 +201,28 @@ describe("authService loginUser", () => {
 
     expect(out.token).toBeTruthy();
     expect(out.refreshToken).toBeTruthy();
-    expect(authService.validateJWT(out.token, config.jwt.secret)).toBe(
-      "user-uuid",
-    );
+    expect(authService.validateJWT(out.token, config.jwt.secret)).toBe("user-uuid");
   });
 });
 
 describe("authService getMe", () => {
-  beforeEach(() => {
-    vi.mocked(authRepository.getUserById).mockReset();
-  });
-
-  it("returns user for valid bearer token", async () => {
-    const token = authService.makeJWT(
-      "uid-1",
-      120,
-      config.jwt.secret,
-    );
-    const req = {
-      headers: { authorization: `Bearer ${token}` },
-    } as unknown as Request;
+  it("maps the authenticated user to the API response", () => {
     const createdAt = new Date();
-    vi.mocked(authRepository.getUserById).mockResolvedValue({
+    const user = {
       id: "uid-1",
       email: "me@example.com",
       hasedPassword: "h",
-      role: "admin",
+      role: "admin" as const,
       createdAt,
       updatedAt: createdAt,
-    });
+    };
 
-    const me = await authService.getMe(req);
+    const me = authService.getMe(user);
     expect(me).toEqual({
       id: "uid-1",
       email: "me@example.com",
       role: "admin",
       createdAt,
     });
-  });
-
-  it("throws when user no longer exists", async () => {
-    const token = authService.makeJWT(
-      "missing",
-      120,
-      config.jwt.secret,
-    );
-    const req = {
-      headers: { authorization: `Bearer ${token}` },
-    } as unknown as Request;
-    vi.mocked(authRepository.getUserById).mockResolvedValue(undefined);
-
-    await expect(authService.getMe(req)).rejects.toThrow(NotFoundError);
   });
 });
