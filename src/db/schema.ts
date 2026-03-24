@@ -4,12 +4,12 @@ import {
   timestamp,
   varchar,
   uuid,
+  integer,
 } from "drizzle-orm/pg-core";
 
 export const userRoleEnum = pgEnum("user_role", [
   "tutor",
   "parent",
-  "student",
   "admin",
 ]);
 
@@ -43,3 +43,15 @@ export const refreshTokens = pgTable("refresh_tokens", {
 });
 
 export type NewRefreshToken = typeof refreshTokens.$inferInsert;
+
+export const students = pgTable("students", {
+  id: uuid("id").primaryKey().defaultRandom().notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().$onUpdate(() => new Date()),
+  parentId: uuid("parent_id").references(() => users.id, { onDelete: "cascade" }),
+  firstName: varchar("first_name", { length: 256 }).notNull(),
+  lastName: varchar("last_name", { length: 256 }).notNull(),
+  dateOfBirth: timestamp("date_of_birth").notNull(),
+});
+
+export type NewStudent = typeof students.$inferInsert;
