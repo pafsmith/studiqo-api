@@ -108,6 +108,7 @@ describe("authService registerUser", () => {
       id: "existing-id",
       email: "a@b.com",
       hasedPassword: "hash",
+      role: "admin",
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -126,6 +127,7 @@ describe("authService registerUser", () => {
       id: "new-id",
       email: "User@Example.com",
       hasedPassword: "stored-hash",
+      role: "admin",
       createdAt,
       updatedAt: createdAt,
     });
@@ -147,6 +149,7 @@ describe("authService registerUser", () => {
     expect(result).toEqual({
       id: "new-id",
       email: "User@Example.com",
+      role: "admin",
       createdAt,
     });
   });
@@ -172,6 +175,7 @@ describe("authService loginUser", () => {
       id: "u1",
       email: "a@b.com",
       hasedPassword: hash,
+      role: "admin",
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -188,6 +192,7 @@ describe("authService loginUser", () => {
       id: "user-uuid",
       email: "login@example.com",
       hasedPassword: hash,
+      role: "admin",
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -232,6 +237,7 @@ describe("authService getMe", () => {
       id: "uid-1",
       email: "me@example.com",
       hasedPassword: "h",
+      role: "admin",
       createdAt,
       updatedAt: createdAt,
     });
@@ -240,6 +246,7 @@ describe("authService getMe", () => {
     expect(me).toEqual({
       id: "uid-1",
       email: "me@example.com",
+      role: "admin",
       createdAt,
     });
   });
