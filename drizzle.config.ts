@@ -1,4 +1,3 @@
-
 import { defineConfig } from "drizzle-kit";
 
 import { config } from "./src/config/config";

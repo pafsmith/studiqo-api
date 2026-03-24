@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
+import { requireUser } from "../../common/middleware/authenticate.middleware.js";
 import { authService } from "./auth.service.js";
 import { respondWithJSON } from "../../common/utils/json.js";
-import { RegisterUserResponse } from "./auth.types.js";
 
 export const authController = {
   async registerUser(req: Request, res: Response, next: NextFunction) {
@@ -22,8 +22,8 @@ export const authController = {
   },
   async getMe(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await authService.getMe(req);
-      respondWithJSON(res, 200, user);
+      const user = requireUser(req);
+      respondWithJSON(res, 200, authService.getMe(user));
     } catch (error) {
       next(error);
     }

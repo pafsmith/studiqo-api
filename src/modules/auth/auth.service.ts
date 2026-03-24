@@ -22,7 +22,7 @@ import jwt from "jsonwebtoken";
 import { config } from "../../config/config.js";
 import crypto from "crypto";
 import { Request } from "express";
-import { refreshTokens } from "../../db/schema.js";
+import type { User } from "../../db/schema.js";
 
 type payload = Pick<JwtPayload, "iss" | "sub" | "iat" | "exp">;
 
@@ -48,7 +48,7 @@ export const authService = {
     let decoded: payload;
     try {
       decoded = jwt.verify(tokenString, secret) as JwtPayload;
-    } catch (e) {
+    } catch {
       throw new UserNotAuthenticatedError("Invalid token");
     }
     if (decoded.iss !== "studiqo") {
@@ -76,9 +76,7 @@ export const authService = {
     return crypto.randomBytes(32).toString("hex");
   },
 
-  registerUser: async (
-    user: RegisterUserRequest,
-  ): Promise<RegisterUserResponse> => {
+  registerUser: async (user: RegisterUserRequest): Promise<RegisterUserResponse> => {
     const email = user.email.trim().toLowerCase();
 
     const existingUser = await authRepository.getUserByEmail(email);
@@ -126,13 +124,7 @@ export const authService = {
     return toLoginUserResponse(existingUser, accessToken, refreshToken);
   },
 
-  getMe: async (req: Request): Promise<RegisterUserResponse> => {
-    const token = authService.getBearerToken(req);
-    const userId = authService.validateJWT(token, config.jwt.secret);
-    const user = await authRepository.getUserById(userId);
-    if (!user) {
-      throw new NotFoundError("User not found");
-    }
+  getMe: (user: User): RegisterUserResponse => {
     return toRegisterUserResponse(user);
   },
   refreshToken: async (req: Request): Promise<RefreshTokenResponse> => {
