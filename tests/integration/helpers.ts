@@ -1,5 +1,9 @@
 import request from "supertest";
 import { app } from "../../src/app.js";
+import { db } from "../../src/db/index.js";
+import { users } from "../../src/db/schema.js";
+import type { UserRole } from "../../src/db/schema.js";
+import { authService } from "../../src/modules/auth/auth.service.js";
 
 export const paths = {
   health: "/api/v1/health",
@@ -8,6 +12,7 @@ export const paths = {
   logout: "/api/v1/auth/logout",
   me: "/api/v1/auth/me",
   refresh: "/api/v1/auth/refresh",
+  students: "/api/v1/students",
 } as const;
 
 /** Satisfies `registerSchema` (upper, lower, digit, special, length). */
@@ -39,4 +44,21 @@ export async function loginUser(email: string): Promise<LoginResponseBody> {
     .send({ email, password: validPassword })
     .expect(200);
   return res.body;
+}
+
+/** Inserts a user with the given role (for roles that public registration does not create). */
+export async function insertUserWithRole(
+  email: string,
+  role: Exclude<UserRole, "admin">,
+): Promise<{ id: string; email: string }> {
+  const hash = await authService.hashPassword(validPassword);
+  const [row] = await db
+    .insert(users)
+    .values({
+      email,
+      hasedPassword: hash,
+      role,
+    })
+    .returning();
+  return { id: row.id, email: row.email };
 }
