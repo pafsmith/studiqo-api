@@ -5,7 +5,6 @@ import { authService } from "../../src/modules/auth/auth.service.js";
 import { authRepository } from "../../src/modules/auth/auth.repository.js";
 import {
   BadRequestError,
-  NotFoundError,
   UserNotAuthenticatedError,
 } from "../../src/common/errors/errors.js";
 import { config } from "../../src/config/config.js";
@@ -219,49 +218,23 @@ describe("authService loginUser", () => {
 });
 
 describe("authService getMe", () => {
-  beforeEach(() => {
-    vi.mocked(authRepository.getUserById).mockReset();
-  });
-
-  it("returns user for valid bearer token", async () => {
-    const token = authService.makeJWT(
-      "uid-1",
-      120,
-      config.jwt.secret,
-    );
-    const req = {
-      headers: { authorization: `Bearer ${token}` },
-    } as unknown as Request;
+  it("maps the authenticated user to the API response", () => {
     const createdAt = new Date();
-    vi.mocked(authRepository.getUserById).mockResolvedValue({
+    const user = {
       id: "uid-1",
       email: "me@example.com",
       hasedPassword: "h",
-      role: "admin",
+      role: "admin" as const,
       createdAt,
       updatedAt: createdAt,
-    });
+    };
 
-    const me = await authService.getMe(req);
+    const me = authService.getMe(user);
     expect(me).toEqual({
       id: "uid-1",
       email: "me@example.com",
       role: "admin",
       createdAt,
     });
-  });
-
-  it("throws when user no longer exists", async () => {
-    const token = authService.makeJWT(
-      "missing",
-      120,
-      config.jwt.secret,
-    );
-    const req = {
-      headers: { authorization: `Bearer ${token}` },
-    } as unknown as Request;
-    vi.mocked(authRepository.getUserById).mockResolvedValue(undefined);
-
-    await expect(authService.getMe(req)).rejects.toThrow(NotFoundError);
   });
 });

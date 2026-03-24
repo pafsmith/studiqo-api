@@ -22,6 +22,7 @@ import jwt from "jsonwebtoken";
 import { config } from "../../config/config.js";
 import crypto from "crypto";
 import { Request } from "express";
+import type { User } from "../../db/schema.js";
 import { refreshTokens } from "../../db/schema.js";
 
 type payload = Pick<JwtPayload, "iss" | "sub" | "iat" | "exp">;
@@ -126,13 +127,7 @@ export const authService = {
     return toLoginUserResponse(existingUser, accessToken, refreshToken);
   },
 
-  getMe: async (req: Request): Promise<RegisterUserResponse> => {
-    const token = authService.getBearerToken(req);
-    const userId = authService.validateJWT(token, config.jwt.secret);
-    const user = await authRepository.getUserById(userId);
-    if (!user) {
-      throw new NotFoundError("User not found");
-    }
+  getMe: (user: User): RegisterUserResponse => {
     return toRegisterUserResponse(user);
   },
   refreshToken: async (req: Request): Promise<RefreshTokenResponse> => {

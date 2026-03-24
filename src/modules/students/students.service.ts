@@ -1,11 +1,10 @@
 import { Request } from "express";
+import { requireUser } from "../../common/middleware/authenticate.middleware.js";
 import {
   NotFoundError,
   UserForbiddenError,
 } from "../../common/errors/errors.js";
-import { config } from "../../config/config.js";
 import { authRepository } from "../auth/auth.repository.js";
-import { authService } from "../auth/auth.service.js";
 import { toStudentResponse } from "./students.mapper.js";
 import { studentsRepository } from "./students.repository.js";
 import {
@@ -16,12 +15,7 @@ import {
 
 export const studentsService = {
   listStudents: async (req: Request): Promise<StudentResponse[]> => {
-    const token = authService.getBearerToken(req);
-    const userId = authService.validateJWT(token, config.jwt.secret);
-    const actor = await authRepository.getUserById(userId);
-    if (!actor) {
-      throw new NotFoundError("User not found");
-    }
+    const actor = requireUser(req);
     if (actor.role === "admin") {
       const rows = await studentsRepository.findAllStudents();
       return rows.map(toStudentResponse);
@@ -37,12 +31,7 @@ export const studentsService = {
     req: Request,
     student: CreateStudentRequest,
   ): Promise<CreateStudentResponse> => {
-    const token = authService.getBearerToken(req);
-    const userId = authService.validateJWT(token, config.jwt.secret);
-    const actor = await authRepository.getUserById(userId);
-    if (!actor) {
-      throw new NotFoundError("User not found");
-    }
+    const actor = requireUser(req);
     if (actor.role !== "admin") {
       throw new UserForbiddenError("Only admins can create students");
     }
