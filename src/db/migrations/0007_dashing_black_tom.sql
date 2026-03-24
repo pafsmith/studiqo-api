@@ -1,0 +1,1 @@
+ALTER TABLE "students" ALTER COLUMN "parent_id" SET NOT NULL;

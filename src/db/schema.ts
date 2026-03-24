@@ -48,10 +48,11 @@ export const students = pgTable("students", {
   id: uuid("id").primaryKey().defaultRandom().notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().$onUpdate(() => new Date()),
-  parentId: uuid("parent_id").references(() => users.id, { onDelete: "cascade" }),
+  parentId: uuid("parent_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
   firstName: varchar("first_name", { length: 256 }).notNull(),
   lastName: varchar("last_name", { length: 256 }).notNull(),
   dateOfBirth: timestamp("date_of_birth").notNull(),
 });
 
 export type NewStudent = typeof students.$inferInsert;
+export type Student = typeof students.$inferSelect;
