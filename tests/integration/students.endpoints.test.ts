@@ -4,12 +4,7 @@ import { eq } from "drizzle-orm";
 import { app } from "../../src/app.js";
 import { db } from "../../src/db/index.js";
 import { users } from "../../src/db/schema.js";
-import {
-  insertUserWithRole,
-  loginUser,
-  paths,
-  registerUser,
-} from "./helpers.js";
+import { insertUserWithRole, loginUser, paths, registerUser } from "./helpers.js";
 
 describe("GET /api/v1/students", () => {
   const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;

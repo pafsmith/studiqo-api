@@ -4,10 +4,7 @@ import type { User } from "../../src/db/schema.js";
 import { studentsService } from "../../src/modules/students/students.service.js";
 import { studentsRepository } from "../../src/modules/students/students.repository.js";
 import { authRepository } from "../../src/modules/auth/auth.repository.js";
-import {
-  NotFoundError,
-  UserForbiddenError,
-} from "../../src/common/errors/errors.js";
+import { NotFoundError, UserForbiddenError } from "../../src/common/errors/errors.js";
 
 vi.mock("../../src/modules/students/students.repository.js", () => ({
   studentsRepository: {
@@ -96,9 +93,7 @@ describe("studentsService listStudents", () => {
       }),
     );
 
-    expect(studentsRepository.findStudentsByParentId).toHaveBeenCalledWith(
-      "par-1",
-    );
+    expect(studentsRepository.findStudentsByParentId).toHaveBeenCalledWith("par-1");
     expect(studentsRepository.findAllStudents).not.toHaveBeenCalled();
     expect(out).toEqual([
       {
