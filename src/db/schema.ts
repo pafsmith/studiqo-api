@@ -1,4 +1,17 @@
-import { pgTable, timestamp, varchar, uuid } from "drizzle-orm/pg-core";
+import {
+  pgEnum,
+  pgTable,
+  timestamp,
+  varchar,
+  uuid,
+} from "drizzle-orm/pg-core";
+
+export const userRoleEnum = pgEnum("user_role", [
+  "tutor",
+  "parent",
+  "student",
+  "admin",
+]);
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom().notNull(),
@@ -9,9 +22,13 @@ export const users = pgTable("users", {
     .$onUpdate(() => new Date()),
   email: varchar("email", { length: 256 }).unique().notNull(),
   hasedPassword: varchar("hased_password", { length: 256 }).notNull(),
+  // TODO: Remove — default new registrations to a non-admin role (e.g. student) once signup chooses role or admins assign it.
+  role: userRoleEnum("role").notNull().default("admin"),
 });
 
 export type NewUser = typeof users.$inferInsert;
+export type User = typeof users.$inferSelect;
+export type UserRole = (typeof userRoleEnum.enumValues)[number];
 
 export const refreshTokens = pgTable("refresh_tokens", {
   token: varchar("token", { length: 256 }).primaryKey().notNull(),

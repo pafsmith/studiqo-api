@@ -16,6 +16,7 @@ export const validPassword = "TestReg1!";
 export type RegisterResponseBody = {
   id: string;
   email: string;
+  role: "tutor" | "parent" | "student" | "admin";
   createdAt: string;
 };
 

@@ -1,27 +1,29 @@
-import { NewUser } from "../../db/schema.js";
+import type { User } from "../../db/schema.js";
 import {
   LoginUserResponse,
   RefreshTokenResponse,
   RegisterUserResponse,
 } from "./auth.types.js";
 
-export function toRegisterUserResponse(user: NewUser): RegisterUserResponse {
+export function toRegisterUserResponse(user: User): RegisterUserResponse {
   return {
-    id: user.id as string,
+    id: user.id,
     email: user.email,
-    createdAt: user.createdAt as Date,
+    role: user.role,
+    createdAt: user.createdAt,
   };
 }
 
 export function toLoginUserResponse(
-  user: NewUser,
+  user: User,
   token: string,
   refreshToken: string,
 ): LoginUserResponse {
   return {
-    id: user.id as string,
+    id: user.id,
     email: user.email,
-    createdAt: user.createdAt as Date,
+    role: user.role,
+    createdAt: user.createdAt,
     token: token,
     refreshToken: refreshToken,
   };

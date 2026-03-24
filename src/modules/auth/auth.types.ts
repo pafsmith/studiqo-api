@@ -1,3 +1,5 @@
+import type { UserRole } from "../../db/schema.js";
+
 export interface RegisterUserRequest {
   email: string;
   password: string;
@@ -6,6 +8,7 @@ export interface RegisterUserRequest {
 export interface RegisterUserResponse {
   id: string;
   email: string;
+  role: UserRole;
   createdAt: Date;
 }
 
@@ -17,6 +20,7 @@ export interface LoginUserRequest {
 export interface LoginUserResponse {
   id: string;
   email: string;
+  role: UserRole;
   createdAt: Date;
   token: string;
   refreshToken: string;
@@ -24,5 +28,4 @@ export interface LoginUserResponse {
 
 export interface RefreshTokenResponse {
   token: string;
-  expiresAt: Date;
 }
