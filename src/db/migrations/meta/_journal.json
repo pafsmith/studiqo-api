@@ -43,6 +43,13 @@
       "when": 1774339774257,
       "tag": "0005_lovely_stick",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1774342293234,
+      "tag": "0006_careless_punisher",
+      "breakpoints": true
     }
   ]
 }
