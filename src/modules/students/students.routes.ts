@@ -5,4 +5,5 @@ import { createStudentSchema } from "./students.schema.js";
 
 export const studentsRoutes = Router();
 
+studentsRoutes.get("/", studentsController.listStudents);
 studentsRoutes.post("/", validate(createStudentSchema), studentsController.createStudent);

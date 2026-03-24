@@ -3,6 +3,15 @@ import { respondWithJSON } from "../../common/utils/json.js";
 import { studentsService } from "./students.service.js";
 
 export const studentsController = {
+  listStudents: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const students = await studentsService.listStudents(req);
+      respondWithJSON(res, 200, students);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   createStudent: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const student = await studentsService.createStudent(req, req.body);
