@@ -8,6 +8,8 @@ import {
   CreateStudentRequest,
   CreateStudentResponse,
   StudentResponse,
+  UpdateStudentRequest,
+  UpdateStudentResponse,
 } from "./students.types.js";
 
 export const studentsService = {
@@ -41,5 +43,37 @@ export const studentsService = {
     }
     const newStudent = await studentsRepository.createStudent(student);
     return toStudentResponse(newStudent);
+  },
+
+  updateStudent: async (
+    req: Request,
+    studentId: string,
+    body: UpdateStudentRequest,
+  ): Promise<UpdateStudentResponse> => {
+    const actor = requireUser(req);
+    if (actor.role !== "admin") {
+      throw new UserForbiddenError("Only admins can update students");
+    }
+
+    const existing = await studentsRepository.findStudentById(studentId);
+    if (!existing) {
+      throw new NotFoundError("Student not found");
+    }
+
+    if (body.parentId !== undefined) {
+      const parent = await authRepository.getUserById(body.parentId);
+      if (!parent) {
+        throw new NotFoundError("Parent not found");
+      }
+      if (parent.role !== "parent") {
+        throw new UserForbiddenError("Only parents can be linked to students");
+      }
+    }
+
+    const updated = await studentsRepository.updateStudent(studentId, body);
+    if (!updated) {
+      throw new NotFoundError("Student not found");
+    }
+    return toStudentResponse(updated);
   },
 };
