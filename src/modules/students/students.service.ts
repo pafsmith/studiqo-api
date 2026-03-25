@@ -76,4 +76,16 @@ export const studentsService = {
     }
     return toStudentResponse(updated);
   },
+
+  deleteStudent: async (req: Request, studentId: string): Promise<void> => {
+    const actor = requireUser(req);
+    if (actor.role !== "admin") {
+      throw new UserForbiddenError("Only admins can delete students");
+    }
+
+    const deleted = await studentsRepository.deleteStudentById(studentId);
+    if (!deleted) {
+      throw new NotFoundError("Student not found");
+    }
+  },
 };

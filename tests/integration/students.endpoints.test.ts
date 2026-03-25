@@ -404,3 +404,154 @@ describe("PUT /api/v1/students/:studentId", () => {
     });
   });
 });
+
+describe("DELETE /api/v1/students/:studentId", () => {
+  const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const adminEmail = `students-del-admin-${runId}@example.com`;
+  const parentEmail = `students-del-parent-${runId}@example.com`;
+  const tutorEmail = `students-del-tutor-${runId}@example.com`;
+  let adminId: string | null = null;
+  let parentId: string | null = null;
+  let tutorId: string | null = null;
+
+  afterEach(async () => {
+    if (tutorId) {
+      await db.delete(users).where(eq(users.id, tutorId));
+      tutorId = null;
+    }
+    if (adminId) {
+      await db.delete(users).where(eq(users.id, adminId));
+      adminId = null;
+    }
+    if (parentId) {
+      await db.delete(users).where(eq(users.id, parentId));
+      parentId = null;
+    }
+  });
+
+  it("returns 401 without Authorization", async () => {
+    const res = await request(app)
+      .delete(`${paths.students}/00000000-0000-4000-8000-000000000001`)
+      .expect(401);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it("returns 400 when studentId is not a valid uuid", async () => {
+    const reg = await registerUser(adminEmail);
+    adminId = reg.id;
+    const session = await loginUser(adminEmail);
+
+    const res = await request(app)
+      .delete(`${paths.students}/not-a-uuid`)
+      .set("Authorization", `Bearer ${session.token}`)
+      .expect("Content-Type", /json/)
+      .expect(400);
+
+    expect(res.body.error).toMatch(/validation/i);
+  });
+
+  it("returns 404 when the student does not exist", async () => {
+    const reg = await registerUser(adminEmail);
+    adminId = reg.id;
+    const session = await loginUser(adminEmail);
+
+    const res = await request(app)
+      .delete(`${paths.students}/00000000-0000-4000-8000-000000000088`)
+      .set("Authorization", `Bearer ${session.token}`)
+      .expect("Content-Type", /json/)
+      .expect(404);
+
+    expect(res.body.error).toMatch(/student not found/i);
+  });
+
+  it("returns 403 for a tutor", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+    const tutor = await insertUserWithRole(tutorEmail, "tutor");
+    tutorId = tutor.id;
+
+    const createRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: parent.id,
+        firstName: "Kid",
+        lastName: "One",
+        dateOfBirth: "2013-04-05T12:00:00.000Z",
+      })
+      .expect(201);
+
+    const tutorSession = await loginUser(tutorEmail);
+
+    const res = await request(app)
+      .delete(`${paths.students}/${createRes.body.id}`)
+      .set("Authorization", `Bearer ${tutorSession.token}`)
+      .expect("Content-Type", /json/)
+      .expect(403);
+
+    expect(res.body.error).toMatch(/forbidden|only admins can delete/i);
+  });
+
+  it("returns 403 for a parent", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+
+    const createRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: parent.id,
+        firstName: "Pat",
+        lastName: "Child",
+        dateOfBirth: "2015-01-02T12:00:00.000Z",
+      })
+      .expect(201);
+
+    const parentSession = await loginUser(parentEmail);
+
+    const res = await request(app)
+      .delete(`${paths.students}/${createRes.body.id}`)
+      .set("Authorization", `Bearer ${parentSession.token}`)
+      .expect("Content-Type", /json/)
+      .expect(403);
+
+    expect(res.body.error).toMatch(/forbidden|only admins can delete/i);
+  });
+
+  it("returns 204 and removes the student for an admin", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+
+    const createRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: parent.id,
+        firstName: "To",
+        lastName: "Delete",
+        dateOfBirth: "2014-06-07T08:00:00.000Z",
+      })
+      .expect(201);
+
+    await request(app)
+      .delete(`${paths.students}/${createRes.body.id}`)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .expect(204);
+
+    const listRes = await request(app)
+      .get(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .expect(200);
+
+    expect(listRes.body).toEqual([]);
+  });
+});

@@ -34,4 +34,12 @@ export const studentsRepository = {
   findStudentsByParentId: async (parentId: string): Promise<Student[]> => {
     return db.select().from(students).where(eq(students.parentId, parentId));
   },
+
+  deleteStudentById: async (id: string): Promise<boolean> => {
+    const deleted = await db
+      .delete(students)
+      .where(eq(students.id, id))
+      .returning({ id: students.id });
+    return deleted.length > 0;
+  },
 };
