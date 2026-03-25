@@ -33,4 +33,17 @@ export const studentsController = {
       next(error);
     }
   },
+
+  deleteStudent: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const studentId = req.params.studentId;
+      if (typeof studentId !== "string") {
+        throw new TypeError("studentId must be a string");
+      }
+      await studentsService.deleteStudent(req, studentId);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  },
 };
