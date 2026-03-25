@@ -11,6 +11,8 @@ vi.mock("../../src/modules/students/students.repository.js", () => ({
     findAllStudents: vi.fn(),
     findStudentsByParentId: vi.fn(),
     createStudent: vi.fn(),
+    findStudentById: vi.fn(),
+    updateStudent: vi.fn(),
   },
 }));
 
@@ -262,5 +264,135 @@ describe("studentsService createStudent", () => {
       lastName: "Lee",
       dateOfBirth: dob,
     });
+  });
+});
+
+describe("studentsService updateStudent", () => {
+  const adminUser = {
+    id: "admin-1",
+    email: "a@b.com",
+    hasedPassword: "h",
+    role: "admin" as const,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const parentUser = {
+    id: "par-1",
+    email: "p@b.com",
+    hasedPassword: "h",
+    role: "parent" as const,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const existingStudent = {
+    id: "stu-1",
+    parentId: "par-1",
+    firstName: "Kid",
+    lastName: "A",
+    dateOfBirth: new Date("2012-01-01"),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  beforeEach(() => {
+    vi.mocked(authRepository.getUserById).mockReset();
+    vi.mocked(studentsRepository.findStudentById).mockReset();
+    vi.mocked(studentsRepository.updateStudent).mockReset();
+  });
+
+  it("rejects tutors", async () => {
+    await expect(
+      studentsService.updateStudent(
+        reqWithUser({
+          id: "t1",
+          email: "t@b.com",
+          hasedPassword: "h",
+          role: "tutor",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+        "stu-1",
+        { firstName: "X" },
+      ),
+    ).rejects.toThrow(UserForbiddenError);
+
+    expect(studentsRepository.findStudentById).not.toHaveBeenCalled();
+    expect(studentsRepository.updateStudent).not.toHaveBeenCalled();
+  });
+
+  it("rejects parents", async () => {
+    await expect(
+      studentsService.updateStudent(reqWithUser(parentUser), "stu-1", {
+        firstName: "X",
+      }),
+    ).rejects.toThrow(UserForbiddenError);
+
+    expect(studentsRepository.findStudentById).not.toHaveBeenCalled();
+    expect(studentsRepository.updateStudent).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when student does not exist", async () => {
+    vi.mocked(studentsRepository.findStudentById).mockResolvedValue(undefined);
+
+    await expect(
+      studentsService.updateStudent(reqWithUser(adminUser), "missing-id", {
+        firstName: "X",
+      }),
+    ).rejects.toThrow(NotFoundError);
+
+    expect(studentsRepository.updateStudent).not.toHaveBeenCalled();
+  });
+
+  it("allows admin to update including parentId when new parent is valid", async () => {
+    const newParentId = "00000000-0000-4000-8000-0000000000aa";
+    vi.mocked(studentsRepository.findStudentById).mockResolvedValue(existingStudent);
+    vi.mocked(authRepository.getUserById).mockResolvedValue({
+      id: newParentId,
+      email: "other@b.com",
+      hasedPassword: "h",
+      role: "parent",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(studentsRepository.updateStudent).mockResolvedValue({
+      ...existingStudent,
+      parentId: newParentId,
+      firstName: "Updated",
+    });
+
+    const out = await studentsService.updateStudent(reqWithUser(adminUser), "stu-1", {
+      parentId: newParentId,
+      firstName: "Updated",
+    });
+
+    expect(authRepository.getUserById).toHaveBeenCalledWith(newParentId);
+    expect(studentsRepository.updateStudent).toHaveBeenCalledWith("stu-1", {
+      parentId: newParentId,
+      firstName: "Updated",
+    });
+    expect(out.firstName).toBe("Updated");
+    expect(out.parentId).toBe(newParentId);
+  });
+
+  it("rejects admin update when new parentId user is not a parent", async () => {
+    vi.mocked(studentsRepository.findStudentById).mockResolvedValue(existingStudent);
+    vi.mocked(authRepository.getUserById).mockResolvedValue({
+      id: "admin-x",
+      email: "x@b.com",
+      hasedPassword: "h",
+      role: "admin",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await expect(
+      studentsService.updateStudent(reqWithUser(adminUser), "stu-1", {
+        parentId: "admin-x",
+      }),
+    ).rejects.toThrow(UserForbiddenError);
+
+    expect(studentsRepository.updateStudent).not.toHaveBeenCalled();
   });
 });

@@ -14,3 +14,7 @@ export type CreateStudentRequest = {
 };
 
 export type CreateStudentResponse = StudentResponse;
+
+export type UpdateStudentRequest = Partial<CreateStudentRequest>;
+
+export type UpdateStudentResponse = StudentResponse;

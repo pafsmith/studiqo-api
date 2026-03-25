@@ -8,6 +8,25 @@ export const studentsRepository = {
     return result;
   },
 
+  findStudentById: async (id: string): Promise<Student | undefined> => {
+    const [row] = await db.select().from(students).where(eq(students.id, id));
+    return row;
+  },
+
+  updateStudent: async (
+    id: string,
+    patch: Partial<
+      Pick<NewStudent, "parentId" | "firstName" | "lastName" | "dateOfBirth">
+    >,
+  ): Promise<Student | undefined> => {
+    const [row] = await db
+      .update(students)
+      .set(patch)
+      .where(eq(students.id, id))
+      .returning();
+    return row;
+  },
+
   findAllStudents: async (): Promise<Student[]> => {
     return db.select().from(students);
   },

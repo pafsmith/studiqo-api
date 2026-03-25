@@ -20,4 +20,17 @@ export const studentsController = {
       next(error);
     }
   },
+
+  updateStudent: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const studentId = req.params.studentId;
+      if (typeof studentId !== "string") {
+        throw new TypeError("studentId must be a string");
+      }
+      const student = await studentsService.updateStudent(req, studentId, req.body);
+      respondWithJSON(res, 200, student);
+    } catch (error) {
+      next(error);
+    }
+  },
 };
