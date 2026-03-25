@@ -27,11 +27,7 @@ export const studentsController = {
       if (typeof studentId !== "string") {
         throw new TypeError("studentId must be a string");
       }
-      const student = await studentsService.updateStudent(
-        req,
-        studentId,
-        req.body,
-      );
+      const student = await studentsService.updateStudent(req, studentId, req.body);
       respondWithJSON(res, 200, student);
     } catch (error) {
       next(error);

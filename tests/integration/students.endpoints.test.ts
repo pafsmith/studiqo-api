@@ -246,3 +246,161 @@ describe("POST /api/v1/students", () => {
     expect(res.body.dateOfBirth).toBeDefined();
   });
 });
+
+describe("PUT /api/v1/students/:studentId", () => {
+  const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const adminEmail = `students-put-admin-${runId}@example.com`;
+  const parentEmail = `students-put-parent-${runId}@example.com`;
+  const tutorEmail = `students-put-tutor-${runId}@example.com`;
+  let adminId: string | null = null;
+  let parentId: string | null = null;
+  let tutorId: string | null = null;
+
+  afterEach(async () => {
+    if (tutorId) {
+      await db.delete(users).where(eq(users.id, tutorId));
+      tutorId = null;
+    }
+    if (adminId) {
+      await db.delete(users).where(eq(users.id, adminId));
+      adminId = null;
+    }
+    if (parentId) {
+      await db.delete(users).where(eq(users.id, parentId));
+      parentId = null;
+    }
+  });
+
+  it("returns 401 without Authorization", async () => {
+    const res = await request(app)
+      .put(`${paths.students}/00000000-0000-4000-8000-000000000001`)
+      .send({ firstName: "X" })
+      .expect(401);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it("returns 400 when no fields are provided", async () => {
+    const reg = await registerUser(adminEmail);
+    adminId = reg.id;
+    const session = await loginUser(adminEmail);
+
+    const res = await request(app)
+      .put(`${paths.students}/00000000-0000-4000-8000-000000000001`)
+      .set("Authorization", `Bearer ${session.token}`)
+      .send({})
+      .expect("Content-Type", /json/)
+      .expect(400);
+
+    expect(res.body.error).toMatch(/validation/i);
+  });
+
+  it("returns 404 when the student does not exist", async () => {
+    const reg = await registerUser(adminEmail);
+    adminId = reg.id;
+    const session = await loginUser(adminEmail);
+
+    const res = await request(app)
+      .put(`${paths.students}/00000000-0000-4000-8000-000000000088`)
+      .set("Authorization", `Bearer ${session.token}`)
+      .send({ firstName: "Ghost" })
+      .expect("Content-Type", /json/)
+      .expect(404);
+
+    expect(res.body.error).toMatch(/student not found/i);
+  });
+
+  it("returns 403 for a tutor", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+    const tutor = await insertUserWithRole(tutorEmail, "tutor");
+    tutorId = tutor.id;
+
+    const createRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: parent.id,
+        firstName: "Kid",
+        lastName: "One",
+        dateOfBirth: "2013-04-05T12:00:00.000Z",
+      })
+      .expect(201);
+
+    const tutorSession = await loginUser(tutorEmail);
+
+    const res = await request(app)
+      .put(`${paths.students}/${createRes.body.id}`)
+      .set("Authorization", `Bearer ${tutorSession.token}`)
+      .send({ firstName: "X" })
+      .expect("Content-Type", /json/)
+      .expect(403);
+
+    expect(res.body.error).toMatch(/forbidden|only admins can update/i);
+  });
+
+  it("returns 403 for a parent", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+
+    const createRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: parent.id,
+        firstName: "Pat",
+        lastName: "Child",
+        dateOfBirth: "2015-01-02T12:00:00.000Z",
+      })
+      .expect(201);
+
+    const parentSession = await loginUser(parentEmail);
+
+    const res = await request(app)
+      .put(`${paths.students}/${createRes.body.id}`)
+      .set("Authorization", `Bearer ${parentSession.token}`)
+      .send({ firstName: "Patricia" })
+      .expect("Content-Type", /json/)
+      .expect(403);
+
+    expect(res.body.error).toMatch(/forbidden|only admins can update/i);
+  });
+
+  it("returns 200 and updated fields for an admin", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+
+    const createRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: parent.id,
+        firstName: "Jane",
+        lastName: "Student",
+        dateOfBirth: "2014-06-07T08:00:00.000Z",
+      })
+      .expect(201);
+
+    const res = await request(app)
+      .put(`${paths.students}/${createRes.body.id}`)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ firstName: "Janet", lastName: "Updated" })
+      .expect("Content-Type", /json/)
+      .expect(200);
+
+    expect(res.body).toMatchObject({
+      id: createRes.body.id,
+      parentId: parent.id,
+      firstName: "Janet",
+      lastName: "Updated",
+    });
+  });
+});
