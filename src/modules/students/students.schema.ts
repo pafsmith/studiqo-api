@@ -27,3 +27,9 @@ export const updateStudentSchema = z.object({
   }),
   body: updateStudentBodySchema,
 });
+
+export const deleteStudentSchema = z.object({
+  params: z.object({
+    studentId: z.string().uuid(),
+  }),
+});
