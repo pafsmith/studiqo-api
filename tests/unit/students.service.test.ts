@@ -13,6 +13,7 @@ vi.mock("../../src/modules/students/students.repository.js", () => ({
     createStudent: vi.fn(),
     findStudentById: vi.fn(),
     updateStudent: vi.fn(),
+    deleteStudentById: vi.fn(),
   },
 }));
 
@@ -394,5 +395,73 @@ describe("studentsService updateStudent", () => {
     ).rejects.toThrow(UserForbiddenError);
 
     expect(studentsRepository.updateStudent).not.toHaveBeenCalled();
+  });
+});
+
+describe("studentsService deleteStudent", () => {
+  const adminUser = {
+    id: "admin-1",
+    email: "a@b.com",
+    hasedPassword: "h",
+    role: "admin" as const,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const parentUser = {
+    id: "par-1",
+    email: "p@b.com",
+    hasedPassword: "h",
+    role: "parent" as const,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  beforeEach(() => {
+    vi.mocked(studentsRepository.deleteStudentById).mockReset();
+  });
+
+  it("rejects tutors", async () => {
+    await expect(
+      studentsService.deleteStudent(
+        reqWithUser({
+          id: "t1",
+          email: "t@b.com",
+          hasedPassword: "h",
+          role: "tutor",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+        "stu-1",
+      ),
+    ).rejects.toThrow(UserForbiddenError);
+
+    expect(studentsRepository.deleteStudentById).not.toHaveBeenCalled();
+  });
+
+  it("rejects parents", async () => {
+    await expect(
+      studentsService.deleteStudent(reqWithUser(parentUser), "stu-1"),
+    ).rejects.toThrow(UserForbiddenError);
+
+    expect(studentsRepository.deleteStudentById).not.toHaveBeenCalled();
+  });
+
+  it("throws NotFoundError when student does not exist", async () => {
+    vi.mocked(studentsRepository.deleteStudentById).mockResolvedValue(false);
+
+    await expect(
+      studentsService.deleteStudent(reqWithUser(adminUser), "missing-id"),
+    ).rejects.toThrow(NotFoundError);
+
+    expect(studentsRepository.deleteStudentById).toHaveBeenCalledWith("missing-id");
+  });
+
+  it("deletes when admin and student exists", async () => {
+    vi.mocked(studentsRepository.deleteStudentById).mockResolvedValue(true);
+
+    await studentsService.deleteStudent(reqWithUser(adminUser), "stu-1");
+
+    expect(studentsRepository.deleteStudentById).toHaveBeenCalledWith("stu-1");
   });
 });
