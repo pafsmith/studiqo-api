@@ -1,5 +1,11 @@
 import { db } from "../../db/index.js";
-import { NewRefreshToken, NewUser, refreshTokens, users } from "../../db/schema.js";
+import {
+  NewRefreshToken,
+  NewUser,
+  refreshTokens,
+  User,
+  users,
+} from "../../db/schema.js";
 import { and, eq, gt, isNull } from "drizzle-orm";
 
 export const authRepository = {
@@ -21,6 +27,18 @@ export const authRepository = {
   },
   getUserById: async (id: string) => {
     const [result] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result;
+  },
+
+  updateUser: async (
+    id: string,
+    patch: Partial<Pick<NewUser, "email" | "role">>,
+  ): Promise<User | undefined> => {
+    const [result] = await db
+      .update(users)
+      .set(patch)
+      .where(eq(users.id, id))
+      .returning();
     return result;
   },
   createRefreshToken: async (refreshToken: NewRefreshToken) => {
