@@ -18,3 +18,9 @@ export const updateUserSchema = z.object({
   }),
   body: updateUserBodySchema,
 });
+
+export const deleteUserSchema = z.object({
+  params: z.object({
+    userId: z.string().uuid(),
+  }),
+});
