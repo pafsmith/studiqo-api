@@ -15,4 +15,17 @@ export const usersController = {
       next(error);
     }
   },
+
+  deleteUser: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.params.userId;
+      if (typeof userId !== "string") {
+        throw new TypeError("userId must be a string");
+      }
+      await usersService.deleteUser(req, userId);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  },
 };

@@ -47,4 +47,16 @@ export const usersService = {
     }
     return toRegisterUserResponse(updated);
   },
+
+  deleteUser: async (req: Request, userId: string): Promise<void> => {
+    const actor = requireUser(req);
+    if (actor.role !== "admin") {
+      throw new UserForbiddenError("Only admins can delete users");
+    }
+
+    const deleted = await authRepository.deleteUserById(userId);
+    if (!deleted) {
+      throw new NotFoundError("User not found");
+    }
+  },
 };

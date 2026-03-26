@@ -14,6 +14,7 @@ vi.mock("../../src/modules/auth/auth.repository.js", () => ({
     getUserById: vi.fn(),
     getUserByEmail: vi.fn(),
     updateUser: vi.fn(),
+    deleteUserById: vi.fn(),
   },
 }));
 
@@ -125,5 +126,73 @@ describe("usersService updateUser", () => {
 
     expect(authRepository.updateUser).toHaveBeenCalledWith("user-1", { role: "tutor" });
     expect(out.role).toBe("tutor");
+  });
+});
+
+describe("usersService deleteUser", () => {
+  const adminUser = {
+    id: "admin-1",
+    email: "a@b.com",
+    hasedPassword: "h",
+    role: "admin" as const,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const parentUser = {
+    id: "par-1",
+    email: "p@b.com",
+    hasedPassword: "h",
+    role: "parent" as const,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  beforeEach(() => {
+    vi.mocked(authRepository.deleteUserById).mockReset();
+  });
+
+  it("rejects tutors", async () => {
+    await expect(
+      usersService.deleteUser(
+        reqWithUser({
+          id: "t1",
+          email: "t@b.com",
+          hasedPassword: "h",
+          role: "tutor",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+        "user-1",
+      ),
+    ).rejects.toThrow(UserForbiddenError);
+
+    expect(authRepository.deleteUserById).not.toHaveBeenCalled();
+  });
+
+  it("rejects parents", async () => {
+    await expect(
+      usersService.deleteUser(reqWithUser(parentUser), "user-1"),
+    ).rejects.toThrow(UserForbiddenError);
+
+    expect(authRepository.deleteUserById).not.toHaveBeenCalled();
+  });
+
+  it("throws NotFoundError when user does not exist", async () => {
+    vi.mocked(authRepository.deleteUserById).mockResolvedValue(false);
+
+    await expect(
+      usersService.deleteUser(reqWithUser(adminUser), "missing-id"),
+    ).rejects.toThrow(NotFoundError);
+
+    expect(authRepository.deleteUserById).toHaveBeenCalledWith("missing-id");
+  });
+
+  it("deletes when admin and user exists", async () => {
+    vi.mocked(authRepository.deleteUserById).mockResolvedValue(true);
+
+    await usersService.deleteUser(reqWithUser(adminUser), "user-1");
+
+    expect(authRepository.deleteUserById).toHaveBeenCalledWith("user-1");
   });
 });
