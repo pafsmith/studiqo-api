@@ -1,10 +1,6 @@
 import { Request } from "express";
 import { requireUser } from "../../common/middleware/authenticate.middleware.js";
-import {
-  BadRequestError,
-  NotFoundError,
-  UserForbiddenError,
-} from "../../common/errors/errors.js";
+import { BadRequestError, NotFoundError } from "../../common/errors/errors.js";
 import type { UserRole } from "../../db/schema.js";
 import { authRepository } from "../auth/auth.repository.js";
 import { toRegisterUserResponse } from "../auth/auth.mapper.js";
@@ -16,10 +12,7 @@ export const usersService = {
     userId: string,
     body: UpdateUserRequest,
   ): Promise<UpdateUserResponse> => {
-    const actor = requireUser(req);
-    if (actor.role !== "admin") {
-      throw new UserForbiddenError("Only admins can update users");
-    }
+    requireUser(req);
 
     const existing = await authRepository.getUserById(userId);
     if (!existing) {
@@ -49,10 +42,7 @@ export const usersService = {
   },
 
   deleteUser: async (req: Request, userId: string): Promise<void> => {
-    const actor = requireUser(req);
-    if (actor.role !== "admin") {
-      throw new UserForbiddenError("Only admins can delete users");
-    }
+    requireUser(req);
 
     const deleted = await authRepository.deleteUserById(userId);
     if (!deleted) {

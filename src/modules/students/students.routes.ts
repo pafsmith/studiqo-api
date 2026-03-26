@@ -1,5 +1,8 @@
 import { Router } from "express";
-import { authenticate } from "../../common/middleware/authenticate.middleware.js";
+import {
+  authenticate,
+  requireAdmin,
+} from "../../common/middleware/authenticate.middleware.js";
 import { validate } from "../../common/middleware/validate.middleware.js";
 import { studentsController } from "./students.controller.js";
 import {
@@ -15,16 +18,19 @@ studentsRoutes.use(authenticate);
 studentsRoutes.get("/", studentsController.listStudents);
 studentsRoutes.post(
   "/",
+  requireAdmin,
   validate(createStudentSchema),
   studentsController.createStudent,
 );
 studentsRoutes.put(
   "/:studentId",
+  requireAdmin,
   validate(updateStudentSchema),
   studentsController.updateStudent,
 );
 studentsRoutes.delete(
   "/:studentId",
+  requireAdmin,
   validate(deleteStudentSchema),
   studentsController.deleteStudent,
 );

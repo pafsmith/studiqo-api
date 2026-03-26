@@ -1,5 +1,9 @@
 import { NextFunction, Request, Response } from "express";
-import { NotFoundError, UserNotAuthenticatedError } from "../errors/errors.js";
+import {
+  NotFoundError,
+  UserForbiddenError,
+  UserNotAuthenticatedError,
+} from "../errors/errors.js";
 import { config } from "../../config/config.js";
 import { authRepository } from "../../modules/auth/auth.repository.js";
 import { authService } from "../../modules/auth/auth.service.js";
@@ -30,4 +34,28 @@ export function requireUser(req: Request): User {
     throw new UserNotAuthenticatedError("Not authenticated");
   }
   return req.user;
+}
+
+/**
+ * Narrows `req.user` to an admin. Use on handlers reached only after `requireAdmin` middleware,
+ * or call directly when enforcing admin in code that is not behind that middleware.
+ */
+export function requireAdminUser(req: Request): User {
+  const user = requireUser(req);
+  if (user.role !== "admin") {
+    throw new UserForbiddenError("Admin access required");
+  }
+  return user;
+}
+/**
+ * After `authenticate`, ensures the caller is an admin. Register on admin-only routes
+ * (e.g. before `validate` and the controller).
+ */
+export function requireAdmin(req: Request, _res: Response, next: NextFunction): void {
+  try {
+    requireAdminUser(req);
+    next();
+  } catch (err) {
+    next(err);
+  }
 }
