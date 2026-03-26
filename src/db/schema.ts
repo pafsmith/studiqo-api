@@ -50,3 +50,16 @@ export const students = pgTable("students", {
 
 export type NewStudent = typeof students.$inferInsert;
 export type Student = typeof students.$inferSelect;
+
+export const subjects = pgTable("subjects", {
+  id: uuid("id").primaryKey().defaultRandom().notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at")
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+  name: varchar("name", { length: 256 }).notNull(),
+})
+
+export type NewSubject = typeof subjects.$inferInsert;
+export type Subject = typeof subjects.$inferSelect;
