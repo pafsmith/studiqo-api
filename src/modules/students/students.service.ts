@@ -1,7 +1,7 @@
 import { Request } from "express";
 import { requireUser } from "../../common/middleware/authenticate.middleware.js";
 import { NotFoundError, UserForbiddenError } from "../../common/errors/errors.js";
-import { authRepository } from "../auth/auth.repository.js";
+import { usersRepository } from "../users/users.repository.js";
 import { toStudentResponse } from "./students.mapper.js";
 import { studentsRepository } from "./students.repository.js";
 import {
@@ -31,7 +31,7 @@ export const studentsService = {
     student: CreateStudentRequest,
   ): Promise<CreateStudentResponse> => {
     requireUser(req);
-    const parent = await authRepository.getUserById(student.parentId);
+    const parent = await usersRepository.getUserById(student.parentId);
     if (!parent) {
       throw new NotFoundError("Parent not found");
     }
@@ -55,7 +55,7 @@ export const studentsService = {
     }
 
     if (body.parentId !== undefined) {
-      const parent = await authRepository.getUserById(body.parentId);
+      const parent = await usersRepository.getUserById(body.parentId);
       if (!parent) {
         throw new NotFoundError("Parent not found");
       }
