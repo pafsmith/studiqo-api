@@ -5,7 +5,7 @@ import {
   UserNotAuthenticatedError,
 } from "../errors/errors.js";
 import { config } from "../../config/config.js";
-import { authRepository } from "../../modules/auth/auth.repository.js";
+import { usersRepository } from "../../modules/users/users.repository.js";
 import { authService } from "../../modules/auth/auth.service.js";
 import type { User } from "../../db/schema.js";
 
@@ -17,7 +17,7 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
   try {
     const token = authService.getBearerToken(req);
     const userId = authService.validateJWT(token, config.jwt.secret);
-    const user = await authRepository.getUserById(userId);
+    const user = await usersRepository.getUserById(userId);
     if (!user) {
       return next(new NotFoundError("User not found"));
     }

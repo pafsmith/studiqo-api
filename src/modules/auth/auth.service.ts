@@ -1,5 +1,6 @@
 import argon2 from "argon2";
 import { authRepository } from "./auth.repository.js";
+import { usersRepository } from "../users/users.repository.js";
 import {
   toLoginUserResponse,
   toRefreshTokenResponse,
@@ -79,14 +80,14 @@ export const authService = {
   registerUser: async (user: RegisterUserRequest): Promise<RegisterUserResponse> => {
     const email = user.email.trim().toLowerCase();
 
-    const existingUser = await authRepository.getUserByEmail(email);
+    const existingUser = await usersRepository.getUserByEmail(email);
 
     if (existingUser) {
       throw new BadRequestError("User with this email already exists");
     }
 
     const hashedPassword = await authService.hashPassword(user.password);
-    const newUser = await authRepository.createUser({
+    const newUser = await usersRepository.createUser({
       email: user.email,
       hasedPassword: hashedPassword,
     });
@@ -94,7 +95,7 @@ export const authService = {
   },
   loginUser: async (user: LoginUserRequest): Promise<LoginUserResponse> => {
     const email = user.email.trim().toLowerCase();
-    const existingUser = await authRepository.getUserByEmail(email);
+    const existingUser = await usersRepository.getUserByEmail(email);
     if (!existingUser) {
       throw new BadRequestError("Invalid email or password");
     }

@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Request } from "express";
 import type { User } from "../../src/db/schema.js";
 import { usersService } from "../../src/modules/users/users.service.js";
-import { authRepository } from "../../src/modules/auth/auth.repository.js";
+import { usersRepository } from "../../src/modules/users/users.repository.js";
 import { BadRequestError, NotFoundError } from "../../src/common/errors/errors.js";
 
-vi.mock("../../src/modules/auth/auth.repository.js", () => ({
-  authRepository: {
+vi.mock("../../src/modules/users/users.repository.js", () => ({
+  usersRepository: {
     getUserById: vi.fn(),
     getUserByEmail: vi.fn(),
     updateUser: vi.fn(),
@@ -38,24 +38,24 @@ describe("usersService updateUser", () => {
   };
 
   beforeEach(() => {
-    vi.mocked(authRepository.getUserById).mockReset();
-    vi.mocked(authRepository.getUserByEmail).mockReset();
-    vi.mocked(authRepository.updateUser).mockReset();
+    vi.mocked(usersRepository.getUserById).mockReset();
+    vi.mocked(usersRepository.getUserByEmail).mockReset();
+    vi.mocked(usersRepository.updateUser).mockReset();
   });
 
   it("returns 404 when user does not exist", async () => {
-    vi.mocked(authRepository.getUserById).mockResolvedValue(undefined);
+    vi.mocked(usersRepository.getUserById).mockResolvedValue(undefined);
 
     await expect(
       usersService.updateUser(reqWithUser(adminUser), "missing-id", { role: "tutor" }),
     ).rejects.toThrow(NotFoundError);
 
-    expect(authRepository.updateUser).not.toHaveBeenCalled();
+    expect(usersRepository.updateUser).not.toHaveBeenCalled();
   });
 
   it("rejects duplicate email", async () => {
-    vi.mocked(authRepository.getUserById).mockResolvedValue(existingUser);
-    vi.mocked(authRepository.getUserByEmail).mockResolvedValue({
+    vi.mocked(usersRepository.getUserById).mockResolvedValue(existingUser);
+    vi.mocked(usersRepository.getUserByEmail).mockResolvedValue({
       id: "other-user",
       email: "taken@b.com",
       hasedPassword: "h",
@@ -70,13 +70,13 @@ describe("usersService updateUser", () => {
       }),
     ).rejects.toThrow(BadRequestError);
 
-    expect(authRepository.updateUser).not.toHaveBeenCalled();
+    expect(usersRepository.updateUser).not.toHaveBeenCalled();
   });
 
   it("allows same email for the same user", async () => {
-    vi.mocked(authRepository.getUserById).mockResolvedValue(existingUser);
-    vi.mocked(authRepository.getUserByEmail).mockResolvedValue(existingUser);
-    vi.mocked(authRepository.updateUser).mockResolvedValue({
+    vi.mocked(usersRepository.getUserById).mockResolvedValue(existingUser);
+    vi.mocked(usersRepository.getUserByEmail).mockResolvedValue(existingUser);
+    vi.mocked(usersRepository.updateUser).mockResolvedValue({
       ...existingUser,
       email: "u@b.com",
     });
@@ -85,15 +85,15 @@ describe("usersService updateUser", () => {
       email: "U@B.com",
     });
 
-    expect(authRepository.updateUser).toHaveBeenCalledWith("user-1", {
+    expect(usersRepository.updateUser).toHaveBeenCalledWith("user-1", {
       email: "u@b.com",
     });
     expect(out.email).toBe("u@b.com");
   });
 
   it("updates role for an admin", async () => {
-    vi.mocked(authRepository.getUserById).mockResolvedValue(existingUser);
-    vi.mocked(authRepository.updateUser).mockResolvedValue({
+    vi.mocked(usersRepository.getUserById).mockResolvedValue(existingUser);
+    vi.mocked(usersRepository.updateUser).mockResolvedValue({
       ...existingUser,
       role: "tutor",
     });
@@ -102,7 +102,9 @@ describe("usersService updateUser", () => {
       role: "tutor",
     });
 
-    expect(authRepository.updateUser).toHaveBeenCalledWith("user-1", { role: "tutor" });
+    expect(usersRepository.updateUser).toHaveBeenCalledWith("user-1", {
+      role: "tutor",
+    });
     expect(out.role).toBe("tutor");
   });
 });
@@ -118,24 +120,24 @@ describe("usersService deleteUser", () => {
   };
 
   beforeEach(() => {
-    vi.mocked(authRepository.deleteUserById).mockReset();
+    vi.mocked(usersRepository.deleteUserById).mockReset();
   });
 
   it("throws NotFoundError when user does not exist", async () => {
-    vi.mocked(authRepository.deleteUserById).mockResolvedValue(false);
+    vi.mocked(usersRepository.deleteUserById).mockResolvedValue(false);
 
     await expect(
       usersService.deleteUser(reqWithUser(adminUser), "missing-id"),
     ).rejects.toThrow(NotFoundError);
 
-    expect(authRepository.deleteUserById).toHaveBeenCalledWith("missing-id");
+    expect(usersRepository.deleteUserById).toHaveBeenCalledWith("missing-id");
   });
 
   it("deletes when admin and user exists", async () => {
-    vi.mocked(authRepository.deleteUserById).mockResolvedValue(true);
+    vi.mocked(usersRepository.deleteUserById).mockResolvedValue(true);
 
     await usersService.deleteUser(reqWithUser(adminUser), "user-1");
 
-    expect(authRepository.deleteUserById).toHaveBeenCalledWith("user-1");
+    expect(usersRepository.deleteUserById).toHaveBeenCalledWith("user-1");
   });
 });

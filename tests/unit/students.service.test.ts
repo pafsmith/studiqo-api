@@ -3,7 +3,7 @@ import type { Request } from "express";
 import type { User } from "../../src/db/schema.js";
 import { studentsService } from "../../src/modules/students/students.service.js";
 import { studentsRepository } from "../../src/modules/students/students.repository.js";
-import { authRepository } from "../../src/modules/auth/auth.repository.js";
+import { usersRepository } from "../../src/modules/users/users.repository.js";
 import { NotFoundError, UserForbiddenError } from "../../src/common/errors/errors.js";
 
 vi.mock("../../src/modules/students/students.repository.js", () => ({
@@ -17,8 +17,8 @@ vi.mock("../../src/modules/students/students.repository.js", () => ({
   },
 }));
 
-vi.mock("../../src/modules/auth/auth.repository.js", () => ({
-  authRepository: {
+vi.mock("../../src/modules/users/users.repository.js", () => ({
+  usersRepository: {
     getUserById: vi.fn(),
   },
 }));
@@ -130,12 +130,12 @@ describe("studentsService listStudents", () => {
 
 describe("studentsService createStudent", () => {
   beforeEach(() => {
-    vi.mocked(authRepository.getUserById).mockReset();
+    vi.mocked(usersRepository.getUserById).mockReset();
     vi.mocked(studentsRepository.createStudent).mockReset();
   });
 
   it("rejects when parent user does not exist", async () => {
-    vi.mocked(authRepository.getUserById).mockResolvedValue(undefined);
+    vi.mocked(usersRepository.getUserById).mockResolvedValue(undefined);
 
     await expect(
       studentsService.createStudent(
@@ -160,7 +160,7 @@ describe("studentsService createStudent", () => {
   });
 
   it("rejects when linked user is not a parent", async () => {
-    vi.mocked(authRepository.getUserById).mockResolvedValue({
+    vi.mocked(usersRepository.getUserById).mockResolvedValue({
       id: "admin-parent",
       email: "x@b.com",
       hasedPassword: "h",
@@ -193,7 +193,7 @@ describe("studentsService createStudent", () => {
 
   it("creates a student and returns the API shape", async () => {
     const dob = new Date("2014-05-06");
-    vi.mocked(authRepository.getUserById).mockResolvedValue({
+    vi.mocked(usersRepository.getUserById).mockResolvedValue({
       id: "par-uuid",
       email: "parent@b.com",
       hasedPassword: "h",
@@ -265,7 +265,7 @@ describe("studentsService updateStudent", () => {
   };
 
   beforeEach(() => {
-    vi.mocked(authRepository.getUserById).mockReset();
+    vi.mocked(usersRepository.getUserById).mockReset();
     vi.mocked(studentsRepository.findStudentById).mockReset();
     vi.mocked(studentsRepository.updateStudent).mockReset();
   });
@@ -285,7 +285,7 @@ describe("studentsService updateStudent", () => {
   it("allows admin to update including parentId when new parent is valid", async () => {
     const newParentId = "00000000-0000-4000-8000-0000000000aa";
     vi.mocked(studentsRepository.findStudentById).mockResolvedValue(existingStudent);
-    vi.mocked(authRepository.getUserById).mockResolvedValue({
+    vi.mocked(usersRepository.getUserById).mockResolvedValue({
       id: newParentId,
       email: "other@b.com",
       hasedPassword: "h",
@@ -304,7 +304,7 @@ describe("studentsService updateStudent", () => {
       firstName: "Updated",
     });
 
-    expect(authRepository.getUserById).toHaveBeenCalledWith(newParentId);
+    expect(usersRepository.getUserById).toHaveBeenCalledWith(newParentId);
     expect(studentsRepository.updateStudent).toHaveBeenCalledWith("stu-1", {
       parentId: newParentId,
       firstName: "Updated",
@@ -315,7 +315,7 @@ describe("studentsService updateStudent", () => {
 
   it("rejects admin update when new parentId user is not a parent", async () => {
     vi.mocked(studentsRepository.findStudentById).mockResolvedValue(existingStudent);
-    vi.mocked(authRepository.getUserById).mockResolvedValue({
+    vi.mocked(usersRepository.getUserById).mockResolvedValue({
       id: "admin-x",
       email: "x@b.com",
       hasedPassword: "h",
