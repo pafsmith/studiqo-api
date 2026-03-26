@@ -14,6 +14,7 @@ export const paths = {
   refresh: "/api/v1/auth/refresh",
   students: "/api/v1/students",
   users: "/api/v1/users",
+  subjects: "/api/v1/subjects",
 } as const;
 
 /** Satisfies `registerSchema` (upper, lower, digit, special, length). */
