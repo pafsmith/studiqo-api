@@ -13,6 +13,7 @@ export const paths = {
   me: "/api/v1/auth/me",
   refresh: "/api/v1/auth/refresh",
   students: "/api/v1/students",
+  users: "/api/v1/users",
 } as const;
 
 /** Satisfies `registerSchema` (upper, lower, digit, special, length). */
