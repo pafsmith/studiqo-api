@@ -5,5 +5,5 @@ export const subjectsRepository = {
   createSubject: async (subject: NewSubject): Promise<Subject> => {
     const [result] = await db.insert(subjects).values(subject).returning();
     return result;
-  }
+  },
 };

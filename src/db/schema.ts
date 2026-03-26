@@ -59,7 +59,7 @@ export const subjects = pgTable("subjects", {
     .defaultNow()
     .$onUpdate(() => new Date()),
   name: varchar("name", { length: 256 }).notNull(),
-})
+});
 
 export type NewSubject = typeof subjects.$inferInsert;
 export type Subject = typeof subjects.$inferSelect;
