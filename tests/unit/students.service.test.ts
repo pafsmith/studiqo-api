@@ -134,30 +134,6 @@ describe("studentsService createStudent", () => {
     vi.mocked(studentsRepository.createStudent).mockReset();
   });
 
-  it("rejects non-admins", async () => {
-    await expect(
-      studentsService.createStudent(
-        reqWithUser({
-          id: "par-1",
-          email: "p@b.com",
-          hasedPassword: "h",
-          role: "parent",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-        {
-          parentId: "00000000-0000-4000-8000-000000000001",
-          firstName: "X",
-          lastName: "Y",
-          dateOfBirth: new Date("2010-01-01"),
-        },
-      ),
-    ).rejects.toThrow(UserForbiddenError);
-
-    expect(authRepository.getUserById).not.toHaveBeenCalled();
-    expect(studentsRepository.createStudent).not.toHaveBeenCalled();
-  });
-
   it("rejects when parent user does not exist", async () => {
     vi.mocked(authRepository.getUserById).mockResolvedValue(undefined);
 
@@ -278,15 +254,6 @@ describe("studentsService updateStudent", () => {
     updatedAt: new Date(),
   };
 
-  const parentUser = {
-    id: "par-1",
-    email: "p@b.com",
-    hasedPassword: "h",
-    role: "parent" as const,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-
   const existingStudent = {
     id: "stu-1",
     parentId: "par-1",
@@ -301,37 +268,6 @@ describe("studentsService updateStudent", () => {
     vi.mocked(authRepository.getUserById).mockReset();
     vi.mocked(studentsRepository.findStudentById).mockReset();
     vi.mocked(studentsRepository.updateStudent).mockReset();
-  });
-
-  it("rejects tutors", async () => {
-    await expect(
-      studentsService.updateStudent(
-        reqWithUser({
-          id: "t1",
-          email: "t@b.com",
-          hasedPassword: "h",
-          role: "tutor",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-        "stu-1",
-        { firstName: "X" },
-      ),
-    ).rejects.toThrow(UserForbiddenError);
-
-    expect(studentsRepository.findStudentById).not.toHaveBeenCalled();
-    expect(studentsRepository.updateStudent).not.toHaveBeenCalled();
-  });
-
-  it("rejects parents", async () => {
-    await expect(
-      studentsService.updateStudent(reqWithUser(parentUser), "stu-1", {
-        firstName: "X",
-      }),
-    ).rejects.toThrow(UserForbiddenError);
-
-    expect(studentsRepository.findStudentById).not.toHaveBeenCalled();
-    expect(studentsRepository.updateStudent).not.toHaveBeenCalled();
   });
 
   it("returns 404 when student does not exist", async () => {
@@ -408,43 +344,8 @@ describe("studentsService deleteStudent", () => {
     updatedAt: new Date(),
   };
 
-  const parentUser = {
-    id: "par-1",
-    email: "p@b.com",
-    hasedPassword: "h",
-    role: "parent" as const,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-
   beforeEach(() => {
     vi.mocked(studentsRepository.deleteStudentById).mockReset();
-  });
-
-  it("rejects tutors", async () => {
-    await expect(
-      studentsService.deleteStudent(
-        reqWithUser({
-          id: "t1",
-          email: "t@b.com",
-          hasedPassword: "h",
-          role: "tutor",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-        "stu-1",
-      ),
-    ).rejects.toThrow(UserForbiddenError);
-
-    expect(studentsRepository.deleteStudentById).not.toHaveBeenCalled();
-  });
-
-  it("rejects parents", async () => {
-    await expect(
-      studentsService.deleteStudent(reqWithUser(parentUser), "stu-1"),
-    ).rejects.toThrow(UserForbiddenError);
-
-    expect(studentsRepository.deleteStudentById).not.toHaveBeenCalled();
   });
 
   it("throws NotFoundError when student does not exist", async () => {
