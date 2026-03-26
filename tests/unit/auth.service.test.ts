@@ -3,17 +3,22 @@ import type { Request } from "express";
 import jwt from "jsonwebtoken";
 import { authService } from "../../src/modules/auth/auth.service.js";
 import { authRepository } from "../../src/modules/auth/auth.repository.js";
+import { usersRepository } from "../../src/modules/users/users.repository.js";
 import {
   BadRequestError,
   UserNotAuthenticatedError,
 } from "../../src/common/errors/errors.js";
 import { config } from "../../src/config/config.js";
 
-vi.mock("../../src/modules/auth/auth.repository.js", () => ({
-  authRepository: {
+vi.mock("../../src/modules/users/users.repository.js", () => ({
+  usersRepository: {
     getUserByEmail: vi.fn(),
     createUser: vi.fn(),
-    getUserById: vi.fn(),
+  },
+}));
+
+vi.mock("../../src/modules/auth/auth.repository.js", () => ({
+  authRepository: {
     createRefreshToken: vi.fn(),
     getUserfromRefreshToken: vi.fn(),
     revokeRefreshToken: vi.fn(),
@@ -90,12 +95,12 @@ describe("authService getBearerToken", () => {
 
 describe("authService registerUser", () => {
   beforeEach(() => {
-    vi.mocked(authRepository.getUserByEmail).mockReset();
-    vi.mocked(authRepository.createUser).mockReset();
+    vi.mocked(usersRepository.getUserByEmail).mockReset();
+    vi.mocked(usersRepository.createUser).mockReset();
   });
 
   it("rejects duplicate email", async () => {
-    vi.mocked(authRepository.getUserByEmail).mockResolvedValue({
+    vi.mocked(usersRepository.getUserByEmail).mockResolvedValue({
       id: "existing-id",
       email: "a@b.com",
       hasedPassword: "hash",
@@ -108,13 +113,13 @@ describe("authService registerUser", () => {
       authService.registerUser({ email: "a@b.com", password: "Aa1!aaaa" }),
     ).rejects.toThrow(BadRequestError);
 
-    expect(authRepository.createUser).not.toHaveBeenCalled();
+    expect(usersRepository.createUser).not.toHaveBeenCalled();
   });
 
   it("creates user with trimmed lowercase lookup email", async () => {
-    vi.mocked(authRepository.getUserByEmail).mockResolvedValue(undefined);
+    vi.mocked(usersRepository.getUserByEmail).mockResolvedValue(undefined);
     const createdAt = new Date();
-    vi.mocked(authRepository.createUser).mockResolvedValue({
+    vi.mocked(usersRepository.createUser).mockResolvedValue({
       id: "new-id",
       email: "User@Example.com",
       hasedPassword: "stored-hash",
@@ -128,8 +133,8 @@ describe("authService registerUser", () => {
       password: "Aa1!aaaa",
     });
 
-    expect(authRepository.getUserByEmail).toHaveBeenCalledWith("user@example.com");
-    expect(authRepository.createUser).toHaveBeenCalledWith(
+    expect(usersRepository.getUserByEmail).toHaveBeenCalledWith("user@example.com");
+    expect(usersRepository.createUser).toHaveBeenCalledWith(
       expect.objectContaining({
         email: "User@Example.com",
         hasedPassword: expect.any(String),
@@ -146,12 +151,12 @@ describe("authService registerUser", () => {
 
 describe("authService loginUser", () => {
   beforeEach(() => {
-    vi.mocked(authRepository.getUserByEmail).mockReset();
+    vi.mocked(usersRepository.getUserByEmail).mockReset();
     vi.mocked(authRepository.createRefreshToken).mockReset();
   });
 
   it("rejects unknown user", async () => {
-    vi.mocked(authRepository.getUserByEmail).mockResolvedValue(undefined);
+    vi.mocked(usersRepository.getUserByEmail).mockResolvedValue(undefined);
 
     await expect(
       authService.loginUser({ email: "nope@example.com", password: "x" }),
@@ -160,7 +165,7 @@ describe("authService loginUser", () => {
 
   it("rejects wrong password", async () => {
     const hash = await authService.hashPassword("Correct1!");
-    vi.mocked(authRepository.getUserByEmail).mockResolvedValue({
+    vi.mocked(usersRepository.getUserByEmail).mockResolvedValue({
       id: "u1",
       email: "a@b.com",
       hasedPassword: hash,
@@ -177,7 +182,7 @@ describe("authService loginUser", () => {
 
   it("returns access and refresh tokens on success", async () => {
     const hash = await authService.hashPassword("GoodPass1!");
-    vi.mocked(authRepository.getUserByEmail).mockResolvedValue({
+    vi.mocked(usersRepository.getUserByEmail).mockResolvedValue({
       id: "user-uuid",
       email: "login@example.com",
       hasedPassword: hash,
