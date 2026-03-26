@@ -1,10 +1,10 @@
-export type createSubjectRequest = {
+export type CreateSubjectRequest = {
   name: string;
 };
 
-export type subjectResponse = {
+export type SubjectResponse = {
   id: string;
   name: string;
 };
 
-export type createSubjectResponse = subjectResponse;
+export type CreateSubjectResponse = SubjectResponse;
