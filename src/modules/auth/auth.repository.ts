@@ -41,6 +41,15 @@ export const authRepository = {
       .returning();
     return result;
   },
+
+  deleteUserById: async (id: string): Promise<boolean> => {
+    const deleted = await db
+      .delete(users)
+      .where(eq(users.id, id))
+      .returning({ id: users.id });
+    return deleted.length > 0;
+  },
+
   createRefreshToken: async (refreshToken: NewRefreshToken) => {
     const [result] = await db.insert(refreshTokens).values(refreshToken).returning();
     return result;

@@ -125,3 +125,127 @@ describe("PUT /api/v1/users/:userId", () => {
     expect(res.body.createdAt).toBeDefined();
   });
 });
+
+describe("DELETE /api/v1/users/:userId", () => {
+  const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const adminEmail = `users-del-admin-${runId}@example.com`;
+  const otherEmail = `users-del-other-${runId}@example.com`;
+  const tutorEmail = `users-del-tutor-${runId}@example.com`;
+  let adminId: string | null = null;
+  let otherId: string | null = null;
+  let tutorId: string | null = null;
+
+  afterEach(async () => {
+    if (tutorId) {
+      await db.delete(users).where(eq(users.id, tutorId));
+      tutorId = null;
+    }
+    if (otherId) {
+      await db.delete(users).where(eq(users.id, otherId));
+      otherId = null;
+    }
+    if (adminId) {
+      await db.delete(users).where(eq(users.id, adminId));
+      adminId = null;
+    }
+  });
+
+  it("returns 401 without Authorization", async () => {
+    const res = await request(app)
+      .delete(`${paths.users}/00000000-0000-4000-8000-000000000001`)
+      .expect(401);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it("returns 400 when userId is not a valid uuid", async () => {
+    const reg = await registerUser(adminEmail);
+    adminId = reg.id;
+    const session = await loginUser(adminEmail);
+
+    const res = await request(app)
+      .delete(`${paths.users}/not-a-uuid`)
+      .set("Authorization", `Bearer ${session.token}`)
+      .expect("Content-Type", /json/)
+      .expect(400);
+
+    expect(res.body.error).toMatch(/validation/i);
+  });
+
+  it("returns 404 when the user does not exist", async () => {
+    const reg = await registerUser(adminEmail);
+    adminId = reg.id;
+    const session = await loginUser(adminEmail);
+
+    const res = await request(app)
+      .delete(`${paths.users}/00000000-0000-4000-8000-000000000088`)
+      .set("Authorization", `Bearer ${session.token}`)
+      .expect("Content-Type", /json/)
+      .expect(404);
+
+    expect(res.body.error).toMatch(/user not found/i);
+  });
+
+  it("returns 403 for a tutor", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const other = await registerUser(otherEmail);
+    otherId = other.id;
+    const tutor = await insertUserWithRole(tutorEmail, "tutor");
+    tutorId = tutor.id;
+    const tutorSession = await loginUser(tutorEmail);
+
+    const res = await request(app)
+      .delete(`${paths.users}/${other.id}`)
+      .set("Authorization", `Bearer ${tutorSession.token}`)
+      .expect("Content-Type", /json/)
+      .expect(403);
+
+    expect(res.body.error).toMatch(/forbidden|only admins can delete/i);
+  });
+
+  it("returns 403 for a parent", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const other = await registerUser(otherEmail);
+    otherId = other.id;
+    const parent = await insertUserWithRole(
+      `users-del-parent-${runId}@example.com`,
+      "parent",
+    );
+    const parentSession = await loginUser(parent.email);
+
+    const res = await request(app)
+      .delete(`${paths.users}/${other.id}`)
+      .set("Authorization", `Bearer ${parentSession.token}`)
+      .expect("Content-Type", /json/)
+      .expect(403);
+
+    expect(res.body.error).toMatch(/forbidden|only admins can delete/i);
+
+    await db.delete(users).where(eq(users.id, parent.id));
+  });
+
+  it("returns 204 and removes the user for an admin", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const other = await registerUser(otherEmail);
+    otherId = other.id;
+    const adminSession = await loginUser(adminEmail);
+
+    await request(app)
+      .delete(`${paths.users}/${other.id}`)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .expect(204);
+
+    otherId = null;
+
+    const res = await request(app)
+      .put(`${paths.users}/${other.id}`)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ role: "tutor" })
+      .expect("Content-Type", /json/)
+      .expect(404);
+
+    expect(res.body.error).toMatch(/user not found/i);
+  });
+});
