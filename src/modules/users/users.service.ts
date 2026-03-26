@@ -2,8 +2,8 @@ import { Request } from "express";
 import { requireUser } from "../../common/middleware/authenticate.middleware.js";
 import { BadRequestError, NotFoundError } from "../../common/errors/errors.js";
 import type { UserRole } from "../../db/schema.js";
-import { authRepository } from "../auth/auth.repository.js";
-import { toRegisterUserResponse } from "../auth/auth.mapper.js";
+import { toRegisterUserResponse } from "./users.mapper.js";
+import { usersRepository } from "./users.repository.js";
 import { UpdateUserRequest, UpdateUserResponse } from "./users.types.js";
 
 export const usersService = {
@@ -14,7 +14,7 @@ export const usersService = {
   ): Promise<UpdateUserResponse> => {
     requireUser(req);
 
-    const existing = await authRepository.getUserById(userId);
+    const existing = await usersRepository.getUserById(userId);
     if (!existing) {
       throw new NotFoundError("User not found");
     }
@@ -23,7 +23,7 @@ export const usersService = {
 
     if (body.email !== undefined) {
       const email = body.email.trim().toLowerCase();
-      const other = await authRepository.getUserByEmail(email);
+      const other = await usersRepository.getUserByEmail(email);
       if (other && other.id !== userId) {
         throw new BadRequestError("User with this email already exists");
       }
@@ -34,7 +34,7 @@ export const usersService = {
       patch.role = body.role;
     }
 
-    const updated = await authRepository.updateUser(userId, patch);
+    const updated = await usersRepository.updateUser(userId, patch);
     if (!updated) {
       throw new NotFoundError("User not found");
     }
@@ -44,7 +44,7 @@ export const usersService = {
   deleteUser: async (req: Request, userId: string): Promise<void> => {
     requireUser(req);
 
-    const deleted = await authRepository.deleteUserById(userId);
+    const deleted = await usersRepository.deleteUserById(userId);
     if (!deleted) {
       throw new NotFoundError("User not found");
     }
