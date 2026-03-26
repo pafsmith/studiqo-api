@@ -82,7 +82,7 @@ describe("PUT /api/v1/users/:userId", () => {
       .expect("Content-Type", /json/)
       .expect(403);
 
-    expect(res.body.error).toMatch(/forbidden|only admins can update/i);
+    expect(res.body.error).toMatch(/admin access required/i);
   });
 
   it("returns 400 when email is already taken by another user", async () => {
@@ -200,7 +200,7 @@ describe("DELETE /api/v1/users/:userId", () => {
       .expect("Content-Type", /json/)
       .expect(403);
 
-    expect(res.body.error).toMatch(/forbidden|only admins can delete/i);
+    expect(res.body.error).toMatch(/admin access required/i);
   });
 
   it("returns 403 for a parent", async () => {
@@ -220,7 +220,7 @@ describe("DELETE /api/v1/users/:userId", () => {
       .expect("Content-Type", /json/)
       .expect(403);
 
-    expect(res.body.error).toMatch(/forbidden|only admins can delete/i);
+    expect(res.body.error).toMatch(/admin access required/i);
 
     await db.delete(users).where(eq(users.id, parent.id));
   });

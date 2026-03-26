@@ -3,11 +3,7 @@ import type { Request } from "express";
 import type { User } from "../../src/db/schema.js";
 import { usersService } from "../../src/modules/users/users.service.js";
 import { authRepository } from "../../src/modules/auth/auth.repository.js";
-import {
-  BadRequestError,
-  NotFoundError,
-  UserForbiddenError,
-} from "../../src/common/errors/errors.js";
+import { BadRequestError, NotFoundError } from "../../src/common/errors/errors.js";
 
 vi.mock("../../src/modules/auth/auth.repository.js", () => ({
   authRepository: {
@@ -32,15 +28,6 @@ describe("usersService updateUser", () => {
     updatedAt: new Date(),
   };
 
-  const tutorUser = {
-    id: "t1",
-    email: "t@b.com",
-    hasedPassword: "h",
-    role: "tutor" as const,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-
   const existingUser = {
     id: "user-1",
     email: "u@b.com",
@@ -54,15 +41,6 @@ describe("usersService updateUser", () => {
     vi.mocked(authRepository.getUserById).mockReset();
     vi.mocked(authRepository.getUserByEmail).mockReset();
     vi.mocked(authRepository.updateUser).mockReset();
-  });
-
-  it("rejects non-admins", async () => {
-    await expect(
-      usersService.updateUser(reqWithUser(tutorUser), "user-1", { role: "parent" }),
-    ).rejects.toThrow(UserForbiddenError);
-
-    expect(authRepository.getUserById).not.toHaveBeenCalled();
-    expect(authRepository.updateUser).not.toHaveBeenCalled();
   });
 
   it("returns 404 when user does not exist", async () => {
@@ -139,43 +117,8 @@ describe("usersService deleteUser", () => {
     updatedAt: new Date(),
   };
 
-  const parentUser = {
-    id: "par-1",
-    email: "p@b.com",
-    hasedPassword: "h",
-    role: "parent" as const,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-
   beforeEach(() => {
     vi.mocked(authRepository.deleteUserById).mockReset();
-  });
-
-  it("rejects tutors", async () => {
-    await expect(
-      usersService.deleteUser(
-        reqWithUser({
-          id: "t1",
-          email: "t@b.com",
-          hasedPassword: "h",
-          role: "tutor",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-        "user-1",
-      ),
-    ).rejects.toThrow(UserForbiddenError);
-
-    expect(authRepository.deleteUserById).not.toHaveBeenCalled();
-  });
-
-  it("rejects parents", async () => {
-    await expect(
-      usersService.deleteUser(reqWithUser(parentUser), "user-1"),
-    ).rejects.toThrow(UserForbiddenError);
-
-    expect(authRepository.deleteUserById).not.toHaveBeenCalled();
   });
 
   it("throws NotFoundError when user does not exist", async () => {

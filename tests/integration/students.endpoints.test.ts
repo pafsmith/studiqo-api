@@ -153,7 +153,7 @@ describe("POST /api/v1/students", () => {
       .expect("Content-Type", /json/)
       .expect(403);
 
-    expect(res.body.error).toMatch(/only admins can create/i);
+    expect(res.body.error).toMatch(/admin access required/i);
   });
 
   it("returns 400 when body fails validation", async () => {
@@ -338,7 +338,7 @@ describe("PUT /api/v1/students/:studentId", () => {
       .expect("Content-Type", /json/)
       .expect(403);
 
-    expect(res.body.error).toMatch(/forbidden|only admins can update/i);
+    expect(res.body.error).toMatch(/admin access required/i);
   });
 
   it("returns 403 for a parent", async () => {
@@ -368,7 +368,7 @@ describe("PUT /api/v1/students/:studentId", () => {
       .expect("Content-Type", /json/)
       .expect(403);
 
-    expect(res.body.error).toMatch(/forbidden|only admins can update/i);
+    expect(res.body.error).toMatch(/admin access required/i);
   });
 
   it("returns 200 and updated fields for an admin", async () => {
@@ -492,7 +492,7 @@ describe("DELETE /api/v1/students/:studentId", () => {
       .expect("Content-Type", /json/)
       .expect(403);
 
-    expect(res.body.error).toMatch(/forbidden|only admins can delete/i);
+    expect(res.body.error).toMatch(/admin access required/i);
   });
 
   it("returns 403 for a parent", async () => {
@@ -521,7 +521,7 @@ describe("DELETE /api/v1/students/:studentId", () => {
       .expect("Content-Type", /json/)
       .expect(403);
 
-    expect(res.body.error).toMatch(/forbidden|only admins can delete/i);
+    expect(res.body.error).toMatch(/admin access required/i);
   });
 
   it("returns 204 and removes the student for an admin", async () => {
