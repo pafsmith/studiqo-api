@@ -30,10 +30,7 @@ export const studentsService = {
     req: Request,
     student: CreateStudentRequest,
   ): Promise<CreateStudentResponse> => {
-    const actor = requireUser(req);
-    if (actor.role !== "admin") {
-      throw new UserForbiddenError("Only admins can create students");
-    }
+    requireUser(req);
     const parent = await authRepository.getUserById(student.parentId);
     if (!parent) {
       throw new NotFoundError("Parent not found");
@@ -50,10 +47,7 @@ export const studentsService = {
     studentId: string,
     body: UpdateStudentRequest,
   ): Promise<UpdateStudentResponse> => {
-    const actor = requireUser(req);
-    if (actor.role !== "admin") {
-      throw new UserForbiddenError("Only admins can update students");
-    }
+    requireUser(req);
 
     const existing = await studentsRepository.findStudentById(studentId);
     if (!existing) {
@@ -78,10 +72,7 @@ export const studentsService = {
   },
 
   deleteStudent: async (req: Request, studentId: string): Promise<void> => {
-    const actor = requireUser(req);
-    if (actor.role !== "admin") {
-      throw new UserForbiddenError("Only admins can delete students");
-    }
+    requireUser(req);
 
     const deleted = await studentsRepository.deleteStudentById(studentId);
     if (!deleted) {
