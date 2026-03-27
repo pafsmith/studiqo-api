@@ -15,6 +15,7 @@ export const paths = {
   students: "/api/v1/students",
   users: "/api/v1/users",
   subjects: "/api/v1/subjects",
+  studentSubjects: (studentId: string) => `/api/v1/students/${studentId}/subjects`,
 } as const;
 
 /** Satisfies `registerSchema` (upper, lower, digit, special, length). */
