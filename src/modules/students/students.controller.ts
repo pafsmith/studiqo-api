@@ -105,7 +105,11 @@ export const studentsController = {
       if (typeof studentId !== "string") {
         throw new TypeError("studentId must be a string");
       }
-      const contact = await studentsService.createEmergencyContact(req, studentId, req.body);
+      const contact = await studentsService.createEmergencyContact(
+        req,
+        studentId,
+        req.body,
+      );
       respondWithJSON(res, 201, contact);
     } catch (error) {
       next(error);

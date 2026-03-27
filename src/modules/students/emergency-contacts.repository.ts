@@ -10,7 +10,10 @@ export const emergencyContactsRepository = {
   },
 
   findById: async (id: string): Promise<EmergencyContact | undefined> => {
-    const [row] = await db.select().from(emergencyContacts).where(eq(emergencyContacts.id, id));
+    const [row] = await db
+      .select()
+      .from(emergencyContacts)
+      .where(eq(emergencyContacts.id, id));
     return row;
   },
 

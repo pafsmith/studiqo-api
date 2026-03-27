@@ -86,7 +86,10 @@ describe("Emergency Contacts API", () => {
         .send({ name: "John Doe", phone: "+1234567890", relationship: "father" })
         .expect(201);
 
-      const otherParent = await insertUserWithRole(`other-${runId}@example.com`, "parent");
+      const otherParent = await insertUserWithRole(
+        `other-${runId}@example.com`,
+        "parent",
+      );
       const otherParentSession = await loginUser(`other-${runId}@example.com`);
 
       await request(app)
