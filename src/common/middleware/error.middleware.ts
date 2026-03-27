@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import {
   BadRequestError,
+  ConflictError,
   NotFoundError,
   UserForbiddenError,
   UserNotAuthenticatedError,
@@ -27,6 +28,9 @@ export function errorMiddleWare(
     message = err.message;
   } else if (err instanceof NotFoundError) {
     statusCode = 404;
+    message = err.message;
+  } else if (err instanceof ConflictError) {
+    statusCode = 409;
     message = err.message;
   }
 
