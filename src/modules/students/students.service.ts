@@ -39,6 +39,10 @@ export const studentsService = {
       const rows = await studentsRepository.findStudentsByParentId(actor.id);
       return rows.map(toStudentResponse);
     }
+    if (actor.role === "tutor") {
+      const rows = await studentsRepository.findStudentByTutorId(actor.id);
+      return rows.map(toStudentResponse);
+    }
     throw new UserForbiddenError("Only admins and parents can list students");
   },
 

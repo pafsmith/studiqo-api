@@ -16,7 +16,10 @@ export const studentsRepository = {
   updateStudent: async (
     id: string,
     patch: Partial<
-      Pick<NewStudent, "parentId" | "tutorId" | "firstName" | "lastName" | "dateOfBirth">
+      Pick<
+        NewStudent,
+        "parentId" | "tutorId" | "firstName" | "lastName" | "dateOfBirth"
+      >
     >,
   ): Promise<Student | undefined> => {
     const [row] = await db
@@ -33,6 +36,10 @@ export const studentsRepository = {
 
   findStudentsByParentId: async (parentId: string): Promise<Student[]> => {
     return db.select().from(students).where(eq(students.parentId, parentId));
+  },
+
+  findStudentByTutorId: async (tutorId: string): Promise<Student[]> => {
+    return db.select().from(students).where(eq(students.tutorId, tutorId));
   },
 
   deleteStudentById: async (id: string): Promise<boolean> => {
