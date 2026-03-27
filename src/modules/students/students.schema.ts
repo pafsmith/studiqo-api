@@ -52,3 +52,48 @@ export const getStudentSchema = z.object({
     studentId: z.string().uuid(),
   }),
 });
+
+const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+
+export const createEmergencyContactSchema = z.object({
+  params: z.object({
+    studentId: z.string().uuid(),
+  }),
+  body: z.object({
+    name: z.string().min(1).max(255),
+    phone: z.string().regex(phoneRegex, "Invalid phone number format"),
+    relationship: z.string().min(1).max(63),
+  }),
+});
+
+const updateEmergencyContactBodySchema = z
+  .object({
+    name: z.string().min(1).max(255).optional(),
+    phone: z.string().regex(phoneRegex, "Invalid phone number format").optional(),
+    relationship: z.string().min(1).max(63).optional(),
+  })
+  .strict()
+  .refine((body) => Object.keys(body).length > 0, {
+    message: "At least one field must be provided",
+  });
+
+export const getEmergencyContactsSchema = z.object({
+  params: z.object({
+    studentId: z.string().uuid(),
+  }),
+});
+
+export const updateEmergencyContactSchema = z.object({
+  params: z.object({
+    studentId: z.string().uuid(),
+    contactId: z.string().uuid(),
+  }),
+  body: updateEmergencyContactBodySchema,
+});
+
+export const deleteEmergencyContactSchema = z.object({
+  params: z.object({
+    studentId: z.string().uuid(),
+    contactId: z.string().uuid(),
+  }),
+});
