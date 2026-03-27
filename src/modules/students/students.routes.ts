@@ -8,6 +8,7 @@ import { studentsController } from "./students.controller.js";
 import {
   createStudentSchema,
   deleteStudentSchema,
+  getStudentSchema,
   linkStudentSubjectSchema,
   updateStudentSchema,
 } from "./students.schema.js";
@@ -17,6 +18,11 @@ export const studentsRoutes = Router();
 studentsRoutes.use(authenticate);
 
 studentsRoutes.get("/", studentsController.listStudents);
+studentsRoutes.get(
+  "/:studentId",
+  validate(getStudentSchema),
+  studentsController.getStudent,
+);
 studentsRoutes.post(
   "/",
   requireAdmin,

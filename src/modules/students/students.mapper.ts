@@ -5,6 +5,7 @@ export function toStudentResponse(student: Student): StudentResponse {
   return {
     id: student.id,
     parentId: student.parentId,
+    tutorId: student.tutorId,
     firstName: student.firstName,
     lastName: student.lastName,
     dateOfBirth: student.dateOfBirth,

@@ -39,6 +39,7 @@ describe("studentsService listStudents", () => {
       {
         id: "s1",
         parentId: "p1",
+        tutorId: null,
         firstName: "A",
         lastName: "B",
         dateOfBirth: dob,
@@ -64,6 +65,7 @@ describe("studentsService listStudents", () => {
       {
         id: "s1",
         parentId: "p1",
+        tutorId: null,
         firstName: "A",
         lastName: "B",
         dateOfBirth: dob,
@@ -77,6 +79,7 @@ describe("studentsService listStudents", () => {
       {
         id: "s2",
         parentId: "par-1",
+        tutorId: null,
         firstName: "C",
         lastName: "D",
         dateOfBirth: dob,
@@ -102,6 +105,7 @@ describe("studentsService listStudents", () => {
       {
         id: "s2",
         parentId: "par-1",
+        tutorId: null,
         firstName: "C",
         lastName: "D",
         dateOfBirth: dob,
@@ -204,6 +208,7 @@ describe("studentsService createStudent", () => {
     vi.mocked(studentsRepository.createStudent).mockResolvedValue({
       id: "new-student-id",
       parentId: "par-uuid",
+      tutorId: null,
       firstName: "Sam",
       lastName: "Lee",
       dateOfBirth: dob,
@@ -237,6 +242,7 @@ describe("studentsService createStudent", () => {
     expect(out).toEqual({
       id: "new-student-id",
       parentId: "par-uuid",
+      tutorId: null,
       firstName: "Sam",
       lastName: "Lee",
       dateOfBirth: dob,
@@ -257,6 +263,7 @@ describe("studentsService updateStudent", () => {
   const existingStudent = {
     id: "stu-1",
     parentId: "par-1",
+    tutorId: null,
     firstName: "Kid",
     lastName: "A",
     dateOfBirth: new Date("2012-01-01"),
@@ -364,5 +371,133 @@ describe("studentsService deleteStudent", () => {
     await studentsService.deleteStudent(reqWithUser(adminUser), "stu-1");
 
     expect(studentsRepository.deleteStudentById).toHaveBeenCalledWith("stu-1");
+  });
+});
+
+describe("studentsService getStudent", () => {
+  const adminUser = {
+    id: "admin-1",
+    email: "a@b.com",
+    hasedPassword: "h",
+    role: "admin" as const,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const parentUser = {
+    id: "parent-1",
+    email: "parent@b.com",
+    hasedPassword: "h",
+    role: "parent" as const,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const tutorUser = {
+    id: "tutor-1",
+    email: "tutor@b.com",
+    hasedPassword: "h",
+    role: "tutor" as const,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const studentWithParent = {
+    id: "stu-1",
+    parentId: "parent-1",
+    tutorId: null as string | null,
+    firstName: "Kid",
+    lastName: "A",
+    dateOfBirth: new Date("2012-01-01"),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const studentWithTutor = {
+    id: "stu-2",
+    parentId: "parent-2",
+    tutorId: "tutor-1",
+    firstName: "Kid",
+    lastName: "B",
+    dateOfBirth: new Date("2013-01-01"),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  beforeEach(() => {
+    vi.mocked(studentsRepository.findStudentById).mockReset();
+  });
+
+  it("returns 404 when student does not exist", async () => {
+    vi.mocked(studentsRepository.findStudentById).mockResolvedValue(undefined);
+
+    await expect(
+      studentsService.getStudent(reqWithUser(adminUser), "missing-id"),
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it("allows admin to view any student", async () => {
+    vi.mocked(studentsRepository.findStudentById).mockResolvedValue(studentWithParent);
+
+    const out = await studentsService.getStudent(reqWithUser(adminUser), "stu-1");
+
+    expect(out).toEqual({
+      id: "stu-1",
+      parentId: "parent-1",
+      tutorId: null,
+      firstName: "Kid",
+      lastName: "A",
+      dateOfBirth: studentWithParent.dateOfBirth,
+    });
+  });
+
+  it("allows parent to view their own student", async () => {
+    vi.mocked(studentsRepository.findStudentById).mockResolvedValue(studentWithParent);
+
+    const out = await studentsService.getStudent(reqWithUser(parentUser), "stu-1");
+
+    expect(out).toEqual({
+      id: "stu-1",
+      parentId: "parent-1",
+      tutorId: null,
+      firstName: "Kid",
+      lastName: "A",
+      dateOfBirth: studentWithParent.dateOfBirth,
+    });
+  });
+
+  it("forbids parent from viewing another parent's student", async () => {
+    const otherParentStudent = {
+      ...studentWithParent,
+      parentId: "other-parent-id",
+    };
+    vi.mocked(studentsRepository.findStudentById).mockResolvedValue(otherParentStudent);
+
+    await expect(
+      studentsService.getStudent(reqWithUser(parentUser), "stu-1"),
+    ).rejects.toThrow(UserForbiddenError);
+  });
+
+  it("allows tutor to view their assigned student", async () => {
+    vi.mocked(studentsRepository.findStudentById).mockResolvedValue(studentWithTutor);
+
+    const out = await studentsService.getStudent(reqWithUser(tutorUser), "stu-2");
+
+    expect(out).toEqual({
+      id: "stu-2",
+      parentId: "parent-2",
+      tutorId: "tutor-1",
+      firstName: "Kid",
+      lastName: "B",
+      dateOfBirth: studentWithTutor.dateOfBirth,
+    });
+  });
+
+  it("forbids tutor from viewing unassigned student", async () => {
+    vi.mocked(studentsRepository.findStudentById).mockResolvedValue(studentWithParent);
+
+    await expect(
+      studentsService.getStudent(reqWithUser(tutorUser), "stu-1"),
+    ).rejects.toThrow(UserForbiddenError);
   });
 });

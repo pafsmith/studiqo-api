@@ -39,7 +39,40 @@ export const studentsService = {
       const rows = await studentsRepository.findStudentsByParentId(actor.id);
       return rows.map(toStudentResponse);
     }
+    if (actor.role === "tutor") {
+      const rows = await studentsRepository.findStudentByTutorId(actor.id);
+      return rows.map(toStudentResponse);
+    }
     throw new UserForbiddenError("Only admins and parents can list students");
+  },
+
+  getStudent: async (req: Request, studentId: string): Promise<StudentResponse> => {
+    const actor = requireUser(req);
+    const student = await studentsRepository.findStudentById(studentId);
+
+    if (!student) {
+      throw new NotFoundError("Student not found");
+    }
+
+    if (actor.role === "admin") {
+      return toStudentResponse(student);
+    }
+
+    if (actor.role === "parent") {
+      if (student.parentId !== actor.id) {
+        throw new UserForbiddenError("Access denied");
+      }
+      return toStudentResponse(student);
+    }
+
+    if (actor.role === "tutor") {
+      if (student.tutorId !== actor.id) {
+        throw new UserForbiddenError("Access denied");
+      }
+      return toStudentResponse(student);
+    }
+
+    throw new UserForbiddenError("Access denied");
   },
 
   createStudent: async (
@@ -77,6 +110,16 @@ export const studentsService = {
       }
       if (parent.role !== "parent") {
         throw new UserForbiddenError("Only parents can be linked to students");
+      }
+    }
+
+    if (body.tutorId !== undefined) {
+      const tutor = await usersRepository.getUserById(body.tutorId);
+      if (!tutor) {
+        throw new NotFoundError("Tutor not found");
+      }
+      if (tutor.role !== "tutor") {
+        throw new UserForbiddenError("Only tutors can be linked to students");
       }
     }
 

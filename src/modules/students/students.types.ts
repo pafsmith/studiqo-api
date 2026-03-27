@@ -1,6 +1,7 @@
 export type StudentResponse = {
   id: string;
   parentId: string;
+  tutorId: string | null;
   firstName: string;
   lastName: string;
   dateOfBirth: Date;
@@ -8,6 +9,7 @@ export type StudentResponse = {
 
 export type CreateStudentRequest = {
   parentId: string;
+  tutorId: string;
   firstName: string;
   lastName: string;
   dateOfBirth: Date;
