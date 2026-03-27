@@ -11,6 +11,10 @@ import {
   getStudentSchema,
   linkStudentSubjectSchema,
   updateStudentSchema,
+  createEmergencyContactSchema,
+  deleteEmergencyContactSchema,
+  getEmergencyContactsSchema,
+  updateEmergencyContactSchema,
 } from "./students.schema.js";
 
 export const studentsRoutes = Router();
@@ -51,4 +55,28 @@ studentsRoutes.delete(
   requireAdmin,
   validate(deleteStudentSchema),
   studentsController.deleteStudent,
+);
+
+studentsRoutes.get(
+  "/:studentId/emergency-contacts",
+  validate(getEmergencyContactsSchema),
+  studentsController.listEmergencyContacts,
+);
+studentsRoutes.post(
+  "/:studentId/emergency-contacts",
+  requireAdmin,
+  validate(createEmergencyContactSchema),
+  studentsController.createEmergencyContact,
+);
+studentsRoutes.put(
+  "/:studentId/emergency-contacts/:contactId",
+  requireAdmin,
+  validate(updateEmergencyContactSchema),
+  studentsController.updateEmergencyContact,
+);
+studentsRoutes.delete(
+  "/:studentId/emergency-contacts/:contactId",
+  requireAdmin,
+  validate(deleteEmergencyContactSchema),
+  studentsController.deleteEmergencyContact,
 );

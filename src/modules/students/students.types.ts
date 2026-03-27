@@ -44,3 +44,25 @@ export type StudentSubjectResponse = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+export type EmergencyContactResponse = {
+  id: string;
+  studentId: string;
+  name: string;
+  phone: string;
+  relationship: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type CreateEmergencyContactRequest = {
+  name: string;
+  phone: string;
+  relationship: string;
+};
+
+export type UpdateEmergencyContactRequest = {
+  name?: string;
+  phone?: string;
+  relationship?: string;
+};
