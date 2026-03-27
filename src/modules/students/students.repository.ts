@@ -16,7 +16,7 @@ export const studentsRepository = {
   updateStudent: async (
     id: string,
     patch: Partial<
-      Pick<NewStudent, "parentId" | "firstName" | "lastName" | "dateOfBirth">
+      Pick<NewStudent, "parentId" | "tutorId" | "firstName" | "lastName" | "dateOfBirth">
     >,
   ): Promise<Student | undefined> => {
     const [row] = await db

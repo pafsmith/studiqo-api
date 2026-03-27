@@ -80,6 +80,16 @@ export const studentsService = {
       }
     }
 
+    if (body.tutorId !== undefined) {
+      const tutor = await usersRepository.getUserById(body.tutorId);
+      if (!tutor) {
+        throw new NotFoundError("Tutor not found");
+      }
+      if (tutor.role !== "tutor") {
+        throw new UserForbiddenError("Only tutors can be linked to students");
+      }
+    }
+
     const updated = await studentsRepository.updateStudent(studentId, body);
     if (!updated) {
       throw new NotFoundError("Student not found");

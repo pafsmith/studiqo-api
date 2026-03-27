@@ -39,6 +39,7 @@ describe("studentsService listStudents", () => {
       {
         id: "s1",
         parentId: "p1",
+        tutorId: null,
         firstName: "A",
         lastName: "B",
         dateOfBirth: dob,
@@ -64,6 +65,7 @@ describe("studentsService listStudents", () => {
       {
         id: "s1",
         parentId: "p1",
+        tutorId: null,
         firstName: "A",
         lastName: "B",
         dateOfBirth: dob,
@@ -77,6 +79,7 @@ describe("studentsService listStudents", () => {
       {
         id: "s2",
         parentId: "par-1",
+        tutorId: null,
         firstName: "C",
         lastName: "D",
         dateOfBirth: dob,
@@ -102,6 +105,7 @@ describe("studentsService listStudents", () => {
       {
         id: "s2",
         parentId: "par-1",
+        tutorId: null,
         firstName: "C",
         lastName: "D",
         dateOfBirth: dob,
@@ -204,6 +208,7 @@ describe("studentsService createStudent", () => {
     vi.mocked(studentsRepository.createStudent).mockResolvedValue({
       id: "new-student-id",
       parentId: "par-uuid",
+      tutorId: null,
       firstName: "Sam",
       lastName: "Lee",
       dateOfBirth: dob,
@@ -237,6 +242,7 @@ describe("studentsService createStudent", () => {
     expect(out).toEqual({
       id: "new-student-id",
       parentId: "par-uuid",
+      tutorId: null,
       firstName: "Sam",
       lastName: "Lee",
       dateOfBirth: dob,
@@ -257,6 +263,7 @@ describe("studentsService updateStudent", () => {
   const existingStudent = {
     id: "stu-1",
     parentId: "par-1",
+    tutorId: null,
     firstName: "Kid",
     lastName: "A",
     dateOfBirth: new Date("2012-01-01"),

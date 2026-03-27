@@ -71,6 +71,13 @@
       "when": 1774599418414,
       "tag": "0009_known_silver_fox",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1774605392448,
+      "tag": "0010_sweet_doctor_octopus",
+      "breakpoints": true
     }
   ]
 }
