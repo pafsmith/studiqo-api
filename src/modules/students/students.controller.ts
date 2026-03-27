@@ -12,6 +12,19 @@ export const studentsController = {
     }
   },
 
+  getStudent: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const studentId = req.params.studentId;
+      if (typeof studentId !== "string") {
+        throw new TypeError("studentId must be a string");
+      }
+      const student = await studentsService.getStudent(req, studentId);
+      respondWithJSON(res, 200, student);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   createStudent: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const student = await studentsService.createStudent(req, req.body);

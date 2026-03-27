@@ -3,6 +3,7 @@ import { z } from "zod";
 export const createStudentSchema = z.object({
   body: z.object({
     parentId: z.string().uuid(),
+    tutorId: z.string().uuid().optional(),
     firstName: z.string().min(1).max(255),
     lastName: z.string().min(1).max(255),
     dateOfBirth: z.coerce.date(),
@@ -12,6 +13,7 @@ export const createStudentSchema = z.object({
 const updateStudentBodySchema = z
   .object({
     parentId: z.string().uuid().optional(),
+    tutorId: z.string().uuid().optional(),
     firstName: z.string().min(1).max(255).optional(),
     lastName: z.string().min(1).max(255).optional(),
     dateOfBirth: z.coerce.date().optional(),
@@ -42,5 +44,11 @@ export const linkStudentSubjectSchema = z.object({
     subjectId: z.string().uuid(),
     currentGrade: z.string().max(32).optional(),
     predictedGrade: z.string().max(32).optional(),
+  }),
+});
+
+export const getStudentSchema = z.object({
+  params: z.object({
+    studentId: z.string().uuid(),
   }),
 });

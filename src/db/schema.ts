@@ -50,6 +50,7 @@ export const students = pgTable("students", {
   parentId: uuid("parent_id")
     .references(() => users.id, { onDelete: "cascade" })
     .notNull(),
+  tutorId: uuid("tutor_id").references(() => users.id, { onDelete: "cascade" }),
   firstName: varchar("first_name", { length: 256 }).notNull(),
   lastName: varchar("last_name", { length: 256 }).notNull(),
   dateOfBirth: timestamp("date_of_birth").notNull(),
