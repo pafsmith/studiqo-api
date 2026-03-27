@@ -29,6 +29,11 @@ studentsRoutes.post(
   validate(createStudentSchema),
   studentsController.createStudent,
 );
+studentsRoutes.get(
+  "/:studentId/subjects",
+  validate(getStudentSchema),
+  studentsController.getStudentSubjects,
+);
 studentsRoutes.post(
   "/:studentId/subjects",
   requireAdmin,

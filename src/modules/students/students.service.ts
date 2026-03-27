@@ -7,7 +7,11 @@ import {
 } from "../../common/errors/errors.js";
 import { subjectsRepository } from "../subjects/subjects.repository.js";
 import { usersRepository } from "../users/users.repository.js";
-import { toStudentResponse, toStudentSubjectLinkResponse } from "./students.mapper.js";
+import {
+  toStudentResponse,
+  toStudentSubjectLinkResponse,
+  toStudentSubjectResponse,
+} from "./students.mapper.js";
 import { studentSubjectsRepository } from "./student-subjects.repository.js";
 import { studentsRepository } from "./students.repository.js";
 import {
@@ -16,6 +20,7 @@ import {
   LinkStudentSubjectRequest,
   StudentResponse,
   StudentSubjectLinkResponse,
+  StudentSubjectResponse,
   UpdateStudentRequest,
   UpdateStudentResponse,
 } from "./students.types.js";
@@ -172,5 +177,43 @@ export const studentsService = {
     });
 
     return toStudentSubjectLinkResponse(row);
+  },
+
+  getStudentSubjects: async (
+    req: Request,
+    studentId: string,
+  ): Promise<StudentSubjectResponse[]> => {
+    const actor = requireUser(req);
+    const student = await studentsRepository.findStudentById(studentId);
+
+    if (!student) {
+      throw new NotFoundError("Student not found");
+    }
+
+    if (actor.role === "admin") {
+      const subjects =
+        await studentSubjectsRepository.findSubjectsByStudentId(studentId);
+      return subjects.map(toStudentSubjectResponse);
+    }
+
+    if (actor.role === "parent") {
+      if (student.parentId !== actor.id) {
+        throw new UserForbiddenError("Access denied");
+      }
+      const subjects =
+        await studentSubjectsRepository.findSubjectsByStudentId(studentId);
+      return subjects.map(toStudentSubjectResponse);
+    }
+
+    if (actor.role === "tutor") {
+      if (student.tutorId !== actor.id) {
+        throw new UserForbiddenError("Access denied");
+      }
+      const subjects =
+        await studentSubjectsRepository.findSubjectsByStudentId(studentId);
+      return subjects.map(toStudentSubjectResponse);
+    }
+
+    throw new UserForbiddenError("Access denied");
   },
 };
