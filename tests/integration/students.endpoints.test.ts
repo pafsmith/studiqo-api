@@ -3,7 +3,7 @@ import request from "supertest";
 import { eq } from "drizzle-orm";
 import { app } from "../../src/app.js";
 import { db } from "../../src/db/index.js";
-import { students, subjects, users } from "../../src/db/schema.js";
+import { studentSubjects, students, subjects, users } from "../../src/db/schema.js";
 import { insertUserWithRole, loginUser, paths, registerUser } from "./helpers.js";
 
 describe("GET /api/v1/students", () => {
@@ -985,6 +985,327 @@ describe("GET /api/v1/students/:studentId", () => {
 
     const res = await request(app)
       .get(`${paths.students}/${studentId}`)
+      .set("Authorization", `Bearer ${tutorSession.token}`)
+      .expect("Content-Type", /json/)
+      .expect(403);
+
+    expect(res.body.error).toMatch(/access denied/i);
+  });
+});
+
+describe("GET /api/v1/students/:studentId/subjects", () => {
+  const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const adminEmail = `students-subjects-admin-${runId}@example.com`;
+  const parentEmail = `students-subjects-parent-${runId}@example.com`;
+  const otherParentEmail = `students-subjects-other-${runId}@example.com`;
+  const tutorEmail = `students-subjects-tutor-${runId}@example.com`;
+  let adminId: string | null = null;
+  let parentId: string | null = null;
+  let otherParentId: string | null = null;
+  let tutorId: string | null = null;
+  let studentId: string | null = null;
+  let subjectId: string | null = null;
+
+  afterEach(async () => {
+    if (subjectId) {
+      await db.delete(studentSubjects).where(eq(studentSubjects.subjectId, subjectId));
+      await db.delete(subjects).where(eq(subjects.id, subjectId));
+      subjectId = null;
+    }
+    if (studentId) {
+      await db.delete(students).where(eq(students.id, studentId));
+      studentId = null;
+    }
+    if (tutorId) {
+      await db.delete(users).where(eq(users.id, tutorId));
+      tutorId = null;
+    }
+    if (otherParentId) {
+      await db.delete(users).where(eq(users.id, otherParentId));
+      otherParentId = null;
+    }
+    if (parentId) {
+      await db.delete(users).where(eq(users.id, parentId));
+      parentId = null;
+    }
+    if (adminId) {
+      await db.delete(users).where(eq(users.id, adminId));
+      adminId = null;
+    }
+  });
+
+  it("returns 401 without Authorization", async () => {
+    const res = await request(app)
+      .get(`${paths.students}/00000000-0000-4000-8000-000000000001/subjects`)
+      .expect(401);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it("returns 400 when studentId is not a valid uuid", async () => {
+    const reg = await registerUser(adminEmail);
+    adminId = reg.id;
+    const session = await loginUser(adminEmail);
+
+    const res = await request(app)
+      .get(`${paths.students}/not-a-uuid/subjects`)
+      .set("Authorization", `Bearer ${session.token}`)
+      .expect("Content-Type", /json/)
+      .expect(400);
+
+    expect(res.body.error).toMatch(/validation/i);
+  });
+
+  it("returns 404 when student does not exist", async () => {
+    const reg = await registerUser(adminEmail);
+    adminId = reg.id;
+    const session = await loginUser(adminEmail);
+
+    const res = await request(app)
+      .get(`${paths.students}/00000000-0000-4000-8000-000000000088/subjects`)
+      .set("Authorization", `Bearer ${session.token}`)
+      .expect("Content-Type", /json/)
+      .expect(404);
+
+    expect(res.body.error).toMatch(/student not found/i);
+  });
+
+  it("returns empty array when student has no subjects", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+
+    const createRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: parent.id,
+        firstName: "Jane",
+        lastName: "Student",
+        dateOfBirth: "2014-06-07T08:00:00.000Z",
+      })
+      .expect(201);
+    studentId = createRes.body.id;
+
+    const res = await request(app)
+      .get(`${paths.students}/${studentId}/subjects`)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .expect(200)
+      .expect("Content-Type", /json/);
+
+    expect(res.body).toEqual([]);
+  });
+
+  it("allows admin to view any student's subjects", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+
+    const createRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: parent.id,
+        firstName: "Jane",
+        lastName: "Student",
+        dateOfBirth: "2014-06-07T08:00:00.000Z",
+      })
+      .expect(201);
+    studentId = createRes.body.id;
+
+    const subjectRes = await request(app)
+      .post(paths.subjects)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ name: "Mathematics" })
+      .expect(201);
+    subjectId = subjectRes.body.id;
+
+    await request(app)
+      .post(paths.studentSubjects(studentId))
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        subjectId: subjectId,
+        currentGrade: "B",
+        predictedGrade: "A",
+      })
+      .expect(201);
+
+    const res = await request(app)
+      .get(`${paths.students}/${studentId}/subjects`)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .expect(200)
+      .expect("Content-Type", /json/);
+
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0]).toMatchObject({
+      subjectId: subjectId,
+      subjectName: "Mathematics",
+      currentGrade: "B",
+      predictedGrade: "A",
+    });
+    expect(res.body[0].createdAt).toBeDefined();
+    expect(res.body[0].updatedAt).toBeDefined();
+  });
+
+  it("allows parent to view their own student's subjects", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+
+    const createRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: parent.id,
+        firstName: "Kid",
+        lastName: "One",
+        dateOfBirth: "2013-04-05T12:00:00.000Z",
+      })
+      .expect(201);
+    studentId = createRes.body.id;
+
+    const subjectRes = await request(app)
+      .post(paths.subjects)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ name: "Physics" })
+      .expect(201);
+    subjectId = subjectRes.body.id;
+
+    await request(app)
+      .post(paths.studentSubjects(studentId))
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        subjectId: subjectId,
+        currentGrade: "C",
+        predictedGrade: "B",
+      })
+      .expect(201);
+
+    const parentSession = await loginUser(parentEmail);
+
+    const res = await request(app)
+      .get(`${paths.students}/${studentId}/subjects`)
+      .set("Authorization", `Bearer ${parentSession.token}`)
+      .expect(200)
+      .expect("Content-Type", /json/);
+
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].subjectName).toBe("Physics");
+  });
+
+  it("forbids parent from viewing another parent's student subjects", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+    const otherParent = await insertUserWithRole(otherParentEmail, "parent");
+    otherParentId = otherParent.id;
+
+    const createRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: otherParent.id,
+        firstName: "Other",
+        lastName: "Kid",
+        dateOfBirth: "2013-04-05T12:00:00.000Z",
+      })
+      .expect(201);
+    studentId = createRes.body.id;
+
+    const parentSession = await loginUser(parentEmail);
+
+    const res = await request(app)
+      .get(`${paths.students}/${studentId}/subjects`)
+      .set("Authorization", `Bearer ${parentSession.token}`)
+      .expect("Content-Type", /json/)
+      .expect(403);
+
+    expect(res.body.error).toMatch(/access denied/i);
+  });
+
+  it("allows tutor to view their assigned student's subjects", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+    const tutor = await insertUserWithRole(tutorEmail, "tutor");
+    tutorId = tutor.id;
+
+    const createRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: parent.id,
+        tutorId: tutor.id,
+        firstName: "Tutored",
+        lastName: "Kid",
+        dateOfBirth: "2013-04-05T12:00:00.000Z",
+      })
+      .expect(201);
+    studentId = createRes.body.id;
+
+    const subjectRes = await request(app)
+      .post(paths.subjects)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ name: "Chemistry" })
+      .expect(201);
+    subjectId = subjectRes.body.id;
+
+    await request(app)
+      .post(paths.studentSubjects(studentId))
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        subjectId: subjectId,
+        currentGrade: "A",
+        predictedGrade: "A*",
+      })
+      .expect(201);
+
+    const tutorSession = await loginUser(tutorEmail);
+
+    const res = await request(app)
+      .get(`${paths.students}/${studentId}/subjects`)
+      .set("Authorization", `Bearer ${tutorSession.token}`)
+      .expect(200)
+      .expect("Content-Type", /json/);
+
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].subjectName).toBe("Chemistry");
+  });
+
+  it("forbids tutor from viewing unassigned student's subjects", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+    const tutor = await insertUserWithRole(tutorEmail, "tutor");
+    tutorId = tutor.id;
+
+    const createRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: parent.id,
+        firstName: "No",
+        lastName: "Tutor",
+        dateOfBirth: "2013-04-05T12:00:00.000Z",
+      })
+      .expect(201);
+    studentId = createRes.body.id;
+
+    const tutorSession = await loginUser(tutorEmail);
+
+    const res = await request(app)
+      .get(`${paths.students}/${studentId}/subjects`)
       .set("Authorization", `Bearer ${tutorSession.token}`)
       .expect("Content-Type", /json/)
       .expect(403);
