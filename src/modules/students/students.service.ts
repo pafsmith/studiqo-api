@@ -42,6 +42,35 @@ export const studentsService = {
     throw new UserForbiddenError("Only admins and parents can list students");
   },
 
+  getStudent: async (req: Request, studentId: string): Promise<StudentResponse> => {
+    const actor = requireUser(req);
+    const student = await studentsRepository.findStudentById(studentId);
+
+    if (!student) {
+      throw new NotFoundError("Student not found");
+    }
+
+    if (actor.role === "admin") {
+      return toStudentResponse(student);
+    }
+
+    if (actor.role === "parent") {
+      if (student.parentId !== actor.id) {
+        throw new UserForbiddenError("Access denied");
+      }
+      return toStudentResponse(student);
+    }
+
+    if (actor.role === "tutor") {
+      if (student.tutorId !== actor.id) {
+        throw new UserForbiddenError("Access denied");
+      }
+      return toStudentResponse(student);
+    }
+
+    throw new UserForbiddenError("Access denied");
+  },
+
   createStudent: async (
     req: Request,
     student: CreateStudentRequest,
