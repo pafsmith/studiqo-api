@@ -1,6 +1,20 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { NewStudentSubject, StudentSubject, studentSubjects } from "../../db/schema.js";
+import {
+  NewStudentSubject,
+  StudentSubject,
+  studentSubjects,
+  subjects,
+} from "../../db/schema.js";
+
+export interface StudentSubjectWithDetails {
+  subjectId: string;
+  subjectName: string;
+  currentGrade: string | null;
+  predictedGrade: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export const studentSubjectsRepository = {
   findByStudentAndSubject: async (
@@ -17,6 +31,23 @@ export const studentSubjectsRepository = {
         ),
       );
     return row;
+  },
+
+  findSubjectsByStudentId: async (
+    studentId: string,
+  ): Promise<StudentSubjectWithDetails[]> => {
+    return db
+      .select({
+        subjectId: subjects.id,
+        subjectName: subjects.name,
+        currentGrade: studentSubjects.currentGrade,
+        predictedGrade: studentSubjects.predictedGrade,
+        createdAt: studentSubjects.createdAt,
+        updatedAt: studentSubjects.updatedAt,
+      })
+      .from(studentSubjects)
+      .innerJoin(subjects, eq(studentSubjects.subjectId, subjects.id))
+      .where(eq(studentSubjects.studentId, studentId));
   },
 
   insertStudentSubject: async (row: NewStudentSubject): Promise<StudentSubject> => {
