@@ -94,3 +94,21 @@ export const studentSubjects = pgTable(
 
 export type NewStudentSubject = typeof studentSubjects.$inferInsert;
 export type StudentSubject = typeof studentSubjects.$inferSelect;
+
+export const emergencyContacts = pgTable("emergency_contacts", {
+  id: uuid("id").primaryKey().defaultRandom().notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at")
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+  studentId: uuid("student_id")
+    .references(() => students.id, { onDelete: "cascade" })
+    .notNull(),
+  name: varchar("name", { length: 256 }).notNull(),
+  phone: varchar("phone", { length: 32 }).notNull(),
+  relationship: varchar("relationship", { length: 64 }).notNull(),
+});
+
+export type NewEmergencyContact = typeof emergencyContacts.$inferInsert;
+export type EmergencyContact = typeof emergencyContacts.$inferSelect;

@@ -1,9 +1,81 @@
 {
-  "id": "6fc33eeb-fc5f-4254-b3f8-78ffc6154f2c",
-  "prevId": "3e2e6af1-7def-4406-976d-54225f070916",
+  "id": "18883078-3faa-465e-9dec-a0935992c5d6",
+  "prevId": "d18f0647-579d-4fca-bbb0-869f134d309f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.emergency_contacts": {
+      "name": "emergency_contacts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "student_id": {
+          "name": "student_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone": {
+          "name": "phone",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "relationship": {
+          "name": "relationship",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "emergency_contacts_student_id_students_id_fk": {
+          "name": "emergency_contacts_student_id_students_id_fk",
+          "tableFrom": "emergency_contacts",
+          "tableTo": "students",
+          "columnsFrom": [
+            "student_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.refresh_tokens": {
       "name": "refresh_tokens",
       "schema": "",
@@ -190,8 +262,7 @@
           "name": "tutor_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'unset'"
+          "notNull": false
         },
         "first_name": {
           "name": "first_name",
