@@ -8,6 +8,7 @@ import { studentsController } from "./students.controller.js";
 import {
   createStudentSchema,
   deleteStudentSchema,
+  linkStudentSubjectSchema,
   updateStudentSchema,
 } from "./students.schema.js";
 
@@ -21,6 +22,12 @@ studentsRoutes.post(
   requireAdmin,
   validate(createStudentSchema),
   studentsController.createStudent,
+);
+studentsRoutes.post(
+  "/:studentId/subjects",
+  requireAdmin,
+  validate(linkStudentSubjectSchema),
+  studentsController.linkStudentSubject,
 );
 studentsRoutes.put(
   "/:studentId",

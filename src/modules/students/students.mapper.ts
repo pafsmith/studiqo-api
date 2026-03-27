@@ -1,5 +1,5 @@
-import { Student } from "../../db/schema.js";
-import { StudentResponse } from "./students.types.js";
+import { Student, StudentSubject } from "../../db/schema.js";
+import { StudentResponse, StudentSubjectLinkResponse } from "./students.types.js";
 
 export function toStudentResponse(student: Student): StudentResponse {
   return {
@@ -8,5 +8,18 @@ export function toStudentResponse(student: Student): StudentResponse {
     firstName: student.firstName,
     lastName: student.lastName,
     dateOfBirth: student.dateOfBirth,
+  };
+}
+
+export function toStudentSubjectLinkResponse(
+  row: StudentSubject,
+): StudentSubjectLinkResponse {
+  return {
+    studentId: row.studentId,
+    subjectId: row.subjectId,
+    currentGrade: row.currentGrade ?? null,
+    predictedGrade: row.predictedGrade ?? null,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   };
 }

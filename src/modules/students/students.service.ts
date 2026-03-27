@@ -1,16 +1,32 @@
 import { Request } from "express";
 import { requireUser } from "../../common/middleware/authenticate.middleware.js";
-import { NotFoundError, UserForbiddenError } from "../../common/errors/errors.js";
+import {
+  ConflictError,
+  NotFoundError,
+  UserForbiddenError,
+} from "../../common/errors/errors.js";
+import { subjectsRepository } from "../subjects/subjects.repository.js";
 import { usersRepository } from "../users/users.repository.js";
-import { toStudentResponse } from "./students.mapper.js";
+import { toStudentResponse, toStudentSubjectLinkResponse } from "./students.mapper.js";
+import { studentSubjectsRepository } from "./student-subjects.repository.js";
 import { studentsRepository } from "./students.repository.js";
 import {
   CreateStudentRequest,
   CreateStudentResponse,
+  LinkStudentSubjectRequest,
   StudentResponse,
+  StudentSubjectLinkResponse,
   UpdateStudentRequest,
   UpdateStudentResponse,
 } from "./students.types.js";
+
+function normalizeOptionalGrade(value: string | undefined): string | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+}
 
 export const studentsService = {
   listStudents: async (req: Request): Promise<StudentResponse[]> => {
@@ -78,5 +94,40 @@ export const studentsService = {
     if (!deleted) {
       throw new NotFoundError("Student not found");
     }
+  },
+
+  linkStudentToSubject: async (
+    req: Request,
+    studentId: string,
+    body: LinkStudentSubjectRequest,
+  ): Promise<StudentSubjectLinkResponse> => {
+    requireUser(req);
+
+    const student = await studentsRepository.findStudentById(studentId);
+    if (!student) {
+      throw new NotFoundError("Student not found");
+    }
+
+    const subject = await subjectsRepository.findSubjectById(body.subjectId);
+    if (!subject) {
+      throw new NotFoundError("Subject not found");
+    }
+
+    const existing = await studentSubjectsRepository.findByStudentAndSubject(
+      studentId,
+      body.subjectId,
+    );
+    if (existing) {
+      throw new ConflictError("Student is already linked to this subject");
+    }
+
+    const row = await studentSubjectsRepository.insertStudentSubject({
+      studentId,
+      subjectId: body.subjectId,
+      currentGrade: normalizeOptionalGrade(body.currentGrade),
+      predictedGrade: normalizeOptionalGrade(body.predictedGrade),
+    });
+
+    return toStudentSubjectLinkResponse(row);
   },
 };

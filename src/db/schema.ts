@@ -1,4 +1,11 @@
-import { pgEnum, pgTable, timestamp, varchar, uuid } from "drizzle-orm/pg-core";
+import {
+  pgEnum,
+  pgTable,
+  primaryKey,
+  timestamp,
+  varchar,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export const userRoleEnum = pgEnum("user_role", ["tutor", "parent", "admin"]);
 
@@ -63,3 +70,26 @@ export const subjects = pgTable("subjects", {
 
 export type NewSubject = typeof subjects.$inferInsert;
 export type Subject = typeof subjects.$inferSelect;
+
+export const studentSubjects = pgTable(
+  "student_subjects",
+  {
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    currentGrade: varchar("current_grade", { length: 32 }),
+    predictedGrade: varchar("predicted_grade", { length: 32 }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [primaryKey({ columns: [table.studentId, table.subjectId] })],
+);
+
+export type NewStudentSubject = typeof studentSubjects.$inferInsert;
+export type StudentSubject = typeof studentSubjects.$inferSelect;

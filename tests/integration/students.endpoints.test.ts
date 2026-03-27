@@ -3,7 +3,7 @@ import request from "supertest";
 import { eq } from "drizzle-orm";
 import { app } from "../../src/app.js";
 import { db } from "../../src/db/index.js";
-import { users } from "../../src/db/schema.js";
+import { subjects, users } from "../../src/db/schema.js";
 import { insertUserWithRole, loginUser, paths, registerUser } from "./helpers.js";
 
 describe("GET /api/v1/students", () => {
@@ -553,5 +553,202 @@ describe("DELETE /api/v1/students/:studentId", () => {
       .expect(200);
 
     expect(listRes.body).toEqual([]);
+  });
+});
+
+describe("POST /api/v1/students/:studentId/subjects", () => {
+  const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const adminEmail = `students-link-admin-${runId}@example.com`;
+  const parentEmail = `students-link-parent-${runId}@example.com`;
+  const tutorEmail = `students-link-tutor-${runId}@example.com`;
+  let adminId: string | null = null;
+  let parentId: string | null = null;
+  let tutorId: string | null = null;
+  let subjectId: string | null = null;
+
+  afterEach(async () => {
+    if (subjectId) {
+      await db.delete(subjects).where(eq(subjects.id, subjectId));
+      subjectId = null;
+    }
+    if (tutorId) {
+      await db.delete(users).where(eq(users.id, tutorId));
+      tutorId = null;
+    }
+    if (adminId) {
+      await db.delete(users).where(eq(users.id, adminId));
+      adminId = null;
+    }
+    if (parentId) {
+      await db.delete(users).where(eq(users.id, parentId));
+      parentId = null;
+    }
+  });
+
+  it("returns 401 without Authorization", async () => {
+    const res = await request(app)
+      .post(paths.studentSubjects("00000000-0000-4000-8000-000000000001"))
+      .send({ subjectId: "00000000-0000-4000-8000-000000000002" })
+      .expect(401);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it("returns 403 for a non-admin", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+    const tutor = await insertUserWithRole(tutorEmail, "tutor");
+    tutorId = tutor.id;
+
+    const createRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: parent.id,
+        firstName: "Kid",
+        lastName: "One",
+        dateOfBirth: "2013-04-05T12:00:00.000Z",
+      })
+      .expect(201);
+
+    const subRes = await request(app)
+      .post(paths.subjects)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ name: "Chemistry" })
+      .expect(201);
+    subjectId = subRes.body.id;
+
+    const tutorSession = await loginUser(tutorEmail);
+
+    const res = await request(app)
+      .post(paths.studentSubjects(createRes.body.id))
+      .set("Authorization", `Bearer ${tutorSession.token}`)
+      .send({ subjectId: subRes.body.id })
+      .expect("Content-Type", /json/)
+      .expect(403);
+
+    expect(res.body.error).toMatch(/admin access required/i);
+  });
+
+  it("returns 400 when body fails validation", async () => {
+    const reg = await registerUser(adminEmail);
+    adminId = reg.id;
+    const session = await loginUser(adminEmail);
+
+    const res = await request(app)
+      .post(paths.studentSubjects("00000000-0000-4000-8000-000000000001"))
+      .set("Authorization", `Bearer ${session.token}`)
+      .send({ subjectId: "not-a-uuid" })
+      .expect("Content-Type", /json/)
+      .expect(400);
+
+    expect(res.body.error).toMatch(/validation/i);
+  });
+
+  it("returns 404 when the student does not exist", async () => {
+    const reg = await registerUser(adminEmail);
+    adminId = reg.id;
+    const session = await loginUser(adminEmail);
+
+    const subRes = await request(app)
+      .post(paths.subjects)
+      .set("Authorization", `Bearer ${session.token}`)
+      .send({ name: "Physics" })
+      .expect(201);
+    subjectId = subRes.body.id;
+
+    const res = await request(app)
+      .post(paths.studentSubjects("00000000-0000-4000-8000-000000000088"))
+      .set("Authorization", `Bearer ${session.token}`)
+      .send({ subjectId: subRes.body.id })
+      .expect("Content-Type", /json/)
+      .expect(404);
+
+    expect(res.body.error).toMatch(/student not found/i);
+  });
+
+  it("returns 404 when the subject does not exist", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+
+    const createRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: parent.id,
+        firstName: "Kid",
+        lastName: "One",
+        dateOfBirth: "2013-04-05T12:00:00.000Z",
+      })
+      .expect(201);
+
+    const res = await request(app)
+      .post(paths.studentSubjects(createRes.body.id))
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ subjectId: "00000000-0000-4000-8000-000000000099" })
+      .expect("Content-Type", /json/)
+      .expect(404);
+
+    expect(res.body.error).toMatch(/subject not found/i);
+  });
+
+  it("returns 201 with grades and 409 when the link already exists", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+
+    const createRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: parent.id,
+        firstName: "Kid",
+        lastName: "One",
+        dateOfBirth: "2013-04-05T12:00:00.000Z",
+      })
+      .expect(201);
+
+    const subRes = await request(app)
+      .post(paths.subjects)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ name: "Maths" })
+      .expect(201);
+    subjectId = subRes.body.id;
+
+    const first = await request(app)
+      .post(paths.studentSubjects(createRes.body.id))
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        subjectId: subRes.body.id,
+        currentGrade: "B",
+        predictedGrade: "A",
+      })
+      .expect("Content-Type", /json/)
+      .expect(201);
+
+    expect(first.body).toMatchObject({
+      studentId: createRes.body.id,
+      subjectId: subRes.body.id,
+      currentGrade: "B",
+      predictedGrade: "A",
+    });
+    expect(first.body.createdAt).toBeDefined();
+    expect(first.body.updatedAt).toBeDefined();
+
+    const dup = await request(app)
+      .post(paths.studentSubjects(createRes.body.id))
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ subjectId: subRes.body.id })
+      .expect("Content-Type", /json/)
+      .expect(409);
+
+    expect(dup.body.error).toMatch(/already linked/i);
   });
 });
