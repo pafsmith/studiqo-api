@@ -46,3 +46,9 @@ export const linkStudentSubjectSchema = z.object({
     predictedGrade: z.string().max(32).optional(),
   }),
 });
+
+export const getStudentSchema = z.object({
+  params: z.object({
+    studentId: z.string().uuid(),
+  }),
+});
