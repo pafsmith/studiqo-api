@@ -3,6 +3,7 @@ import type { Request } from "express";
 import type { User } from "../../src/db/schema.js";
 import { studentsService } from "../../src/modules/students/students.service.js";
 import { studentsRepository } from "../../src/modules/students/students.repository.js";
+import { studentSubjectsRepository } from "../../src/modules/students/student-subjects.repository.js";
 import { usersRepository } from "../../src/modules/users/users.repository.js";
 import { NotFoundError, UserForbiddenError } from "../../src/common/errors/errors.js";
 
@@ -15,6 +16,14 @@ vi.mock("../../src/modules/students/students.repository.js", () => ({
     findStudentById: vi.fn(),
     updateStudent: vi.fn(),
     deleteStudentById: vi.fn(),
+  },
+}));
+
+vi.mock("../../src/modules/students/student-subjects.repository.js", () => ({
+  studentSubjectsRepository: {
+    findByStudentAndSubject: vi.fn(),
+    findSubjectsByStudentId: vi.fn(),
+    insertStudentSubject: vi.fn(),
   },
 }));
 
@@ -522,6 +531,175 @@ describe("studentsService getStudent", () => {
 
     await expect(
       studentsService.getStudent(reqWithUser(tutorUser), "stu-1"),
+    ).rejects.toThrow(UserForbiddenError);
+  });
+});
+
+describe("studentsService getStudentSubjects", () => {
+  const adminUser = {
+    id: "admin-1",
+    email: "a@b.com",
+    hasedPassword: "h",
+    role: "admin" as const,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const parentUser = {
+    id: "parent-1",
+    email: "parent@b.com",
+    hasedPassword: "h",
+    role: "parent" as const,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const tutorUser = {
+    id: "tutor-1",
+    email: "tutor@b.com",
+    hasedPassword: "h",
+    role: "tutor" as const,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const studentWithParent = {
+    id: "stu-1",
+    parentId: "parent-1",
+    tutorId: null as string | null,
+    firstName: "Kid",
+    lastName: "A",
+    dateOfBirth: new Date("2012-01-01"),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const studentWithTutor = {
+    id: "stu-2",
+    parentId: "parent-2",
+    tutorId: "tutor-1",
+    firstName: "Kid",
+    lastName: "B",
+    dateOfBirth: new Date("2013-01-01"),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockSubjects = [
+    {
+      subjectId: "sub-1",
+      subjectName: "Math",
+      currentGrade: "A",
+      predictedGrade: "A*",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      subjectId: "sub-2",
+      subjectName: "Science",
+      currentGrade: "B",
+      predictedGrade: "A",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ];
+
+  beforeEach(() => {
+    vi.mocked(studentsRepository.findStudentById).mockReset();
+    vi.mocked(studentSubjectsRepository.findSubjectsByStudentId).mockReset();
+  });
+
+  it("returns 404 when student does not exist", async () => {
+    vi.mocked(studentsRepository.findStudentById).mockResolvedValue(undefined);
+
+    await expect(
+      studentsService.getStudentSubjects(reqWithUser(adminUser), "missing-id"),
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it("allows admin to view any student's subjects", async () => {
+    vi.mocked(studentsRepository.findStudentById).mockResolvedValue(studentWithParent);
+    vi.mocked(studentSubjectsRepository.findSubjectsByStudentId).mockResolvedValue(
+      mockSubjects,
+    );
+
+    const out = await studentsService.getStudentSubjects(
+      reqWithUser(adminUser),
+      "stu-1",
+    );
+
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({
+      subjectId: "sub-1",
+      subjectName: "Math",
+      currentGrade: "A",
+      predictedGrade: "A*",
+    });
+    expect(out[1]).toMatchObject({
+      subjectId: "sub-2",
+      subjectName: "Science",
+      currentGrade: "B",
+      predictedGrade: "A",
+    });
+  });
+
+  it("returns empty array when student has no subjects", async () => {
+    vi.mocked(studentsRepository.findStudentById).mockResolvedValue(studentWithParent);
+    vi.mocked(studentSubjectsRepository.findSubjectsByStudentId).mockResolvedValue([]);
+
+    const out = await studentsService.getStudentSubjects(
+      reqWithUser(adminUser),
+      "stu-1",
+    );
+
+    expect(out).toEqual([]);
+  });
+
+  it("allows parent to view their own student's subjects", async () => {
+    vi.mocked(studentsRepository.findStudentById).mockResolvedValue(studentWithParent);
+    vi.mocked(studentSubjectsRepository.findSubjectsByStudentId).mockResolvedValue(
+      mockSubjects,
+    );
+
+    const out = await studentsService.getStudentSubjects(
+      reqWithUser(parentUser),
+      "stu-1",
+    );
+
+    expect(out).toHaveLength(2);
+  });
+
+  it("forbids parent from viewing another parent's student subjects", async () => {
+    const otherParentStudent = {
+      ...studentWithParent,
+      parentId: "other-parent-id",
+    };
+    vi.mocked(studentsRepository.findStudentById).mockResolvedValue(otherParentStudent);
+
+    await expect(
+      studentsService.getStudentSubjects(reqWithUser(parentUser), "stu-1"),
+    ).rejects.toThrow(UserForbiddenError);
+  });
+
+  it("allows tutor to view their assigned student's subjects", async () => {
+    vi.mocked(studentsRepository.findStudentById).mockResolvedValue(studentWithTutor);
+    vi.mocked(studentSubjectsRepository.findSubjectsByStudentId).mockResolvedValue(
+      mockSubjects,
+    );
+
+    const out = await studentsService.getStudentSubjects(
+      reqWithUser(tutorUser),
+      "stu-2",
+    );
+
+    expect(out).toHaveLength(2);
+  });
+
+  it("forbids tutor from viewing unassigned student's subjects", async () => {
+    vi.mocked(studentsRepository.findStudentById).mockResolvedValue(studentWithParent);
+
+    await expect(
+      studentsService.getStudentSubjects(reqWithUser(tutorUser), "stu-1"),
     ).rejects.toThrow(UserForbiddenError);
   });
 });

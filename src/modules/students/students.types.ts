@@ -35,3 +35,12 @@ export type StudentSubjectLinkResponse = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+export type StudentSubjectResponse = {
+  subjectId: string;
+  subjectName: string;
+  currentGrade: string | null;
+  predictedGrade: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
