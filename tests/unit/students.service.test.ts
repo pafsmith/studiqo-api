@@ -10,6 +10,7 @@ vi.mock("../../src/modules/students/students.repository.js", () => ({
   studentsRepository: {
     findAllStudents: vi.fn(),
     findStudentsByParentId: vi.fn(),
+    findStudentByTutorId: vi.fn(),
     createStudent: vi.fn(),
     findStudentById: vi.fn(),
     updateStudent: vi.fn(),
@@ -113,22 +114,45 @@ describe("studentsService listStudents", () => {
     ]);
   });
 
-  it("rejects tutors", async () => {
-    await expect(
-      studentsService.listStudents(
-        reqWithUser({
-          id: "t1",
-          email: "t@b.com",
-          hasedPassword: "h",
-          role: "tutor",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-      ),
-    ).rejects.toThrow(UserForbiddenError);
+  it("returns only the tutor's assigned students for a tutor", async () => {
+    const dob = new Date("2010-01-01");
+    vi.mocked(studentsRepository.findStudentByTutorId).mockResolvedValue([
+      {
+        id: "s3",
+        parentId: "par-1",
+        tutorId: "t1",
+        firstName: "E",
+        lastName: "F",
+        dateOfBirth: dob,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
 
+    const out = await studentsService.listStudents(
+      reqWithUser({
+        id: "t1",
+        email: "t@b.com",
+        hasedPassword: "h",
+        role: "tutor",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+    );
+
+    expect(studentsRepository.findStudentByTutorId).toHaveBeenCalledWith("t1");
     expect(studentsRepository.findAllStudents).not.toHaveBeenCalled();
     expect(studentsRepository.findStudentsByParentId).not.toHaveBeenCalled();
+    expect(out).toEqual([
+      {
+        id: "s3",
+        parentId: "par-1",
+        tutorId: "t1",
+        firstName: "E",
+        lastName: "F",
+        dateOfBirth: dob,
+      },
+    ]);
   });
 });
 
