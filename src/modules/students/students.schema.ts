@@ -33,3 +33,14 @@ export const deleteStudentSchema = z.object({
     studentId: z.string().uuid(),
   }),
 });
+
+export const linkStudentSubjectSchema = z.object({
+  params: z.object({
+    studentId: z.string().uuid(),
+  }),
+  body: z.object({
+    subjectId: z.string().uuid(),
+    currentGrade: z.string().max(32).optional(),
+    predictedGrade: z.string().max(32).optional(),
+  }),
+});

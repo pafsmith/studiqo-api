@@ -64,6 +64,13 @@
       "when": 1774530999252,
       "tag": "0008_romantic_freak",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1774599418414,
+      "tag": "0009_known_silver_fox",
+      "breakpoints": true
     }
   ]
 }
