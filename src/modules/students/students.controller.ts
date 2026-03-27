@@ -85,4 +85,63 @@ export const studentsController = {
       next(error);
     }
   },
+
+  listEmergencyContacts: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const studentId = req.params.studentId;
+      if (typeof studentId !== "string") {
+        throw new TypeError("studentId must be a string");
+      }
+      const contacts = await studentsService.listEmergencyContacts(req, studentId);
+      respondWithJSON(res, 200, contacts);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  createEmergencyContact: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const studentId = req.params.studentId;
+      if (typeof studentId !== "string") {
+        throw new TypeError("studentId must be a string");
+      }
+      const contact = await studentsService.createEmergencyContact(req, studentId, req.body);
+      respondWithJSON(res, 201, contact);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  updateEmergencyContact: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const studentId = req.params.studentId;
+      const contactId = req.params.contactId;
+      if (typeof studentId !== "string" || typeof contactId !== "string") {
+        throw new TypeError("studentId and contactId must be strings");
+      }
+      const contact = await studentsService.updateEmergencyContact(
+        req,
+        studentId,
+        contactId,
+        req.body,
+      );
+      respondWithJSON(res, 200, contact);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  deleteEmergencyContact: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const studentId = req.params.studentId;
+      const contactId = req.params.contactId;
+      if (typeof studentId !== "string" || typeof contactId !== "string") {
+        throw new TypeError("studentId and contactId must be strings");
+      }
+      await studentsService.deleteEmergencyContact(req, studentId, contactId);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  },
 };
