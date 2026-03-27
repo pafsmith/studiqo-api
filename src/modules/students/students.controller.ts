@@ -46,4 +46,17 @@ export const studentsController = {
       next(error);
     }
   },
+
+  linkStudentSubject: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const studentId = req.params.studentId;
+      if (typeof studentId !== "string") {
+        throw new TypeError("studentId must be a string");
+      }
+      const link = await studentsService.linkStudentToSubject(req, studentId, req.body);
+      respondWithJSON(res, 201, link);
+    } catch (error) {
+      next(error);
+    }
+  },
 };
