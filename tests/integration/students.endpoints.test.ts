@@ -35,7 +35,7 @@ describe("GET /api/v1/students", () => {
     expect(res.body.error).toBeDefined();
   });
 
-  it("returns 403 for a tutor", async () => {
+  it("returns 200 and empty list for a tutor with no assigned students", async () => {
     const tutor = await insertUserWithRole(tutorEmail, "tutor");
     tutorId = tutor.id;
     const session = await loginUser(tutorEmail);
@@ -43,10 +43,10 @@ describe("GET /api/v1/students", () => {
     const res = await request(app)
       .get(paths.students)
       .set("Authorization", `Bearer ${session.token}`)
-      .expect("Content-Type", /json/)
-      .expect(403);
+      .expect(200)
+      .expect("Content-Type", /json/);
 
-    expect(res.body.error).toMatch(/forbidden|only admins and parents/i);
+    expect(res.body).toEqual([]);
   });
 
   it("returns 200 and an empty list for an admin with no students", async () => {
@@ -547,12 +547,10 @@ describe("DELETE /api/v1/students/:studentId", () => {
       .set("Authorization", `Bearer ${adminSession.token}`)
       .expect(204);
 
-    const listRes = await request(app)
-      .get(paths.students)
+    await request(app)
+      .get(`${paths.students}/${createRes.body.id}`)
       .set("Authorization", `Bearer ${adminSession.token}`)
-      .expect(200);
-
-    expect(listRes.body).toEqual([]);
+      .expect(404);
   });
 });
 
