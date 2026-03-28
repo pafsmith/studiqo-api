@@ -1,13 +1,22 @@
 import {
+  index,
   pgEnum,
   pgTable,
   primaryKey,
+  text,
   timestamp,
   varchar,
   uuid,
 } from "drizzle-orm/pg-core";
 
 export const userRoleEnum = pgEnum("user_role", ["tutor", "parent", "admin"]);
+
+export const lessonStatusEnum = pgEnum("lesson_status", [
+  "scheduled",
+  "completed",
+  "cancelled",
+  "no_show",
+]);
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom().notNull(),
@@ -112,3 +121,36 @@ export const emergencyContacts = pgTable("emergency_contacts", {
 
 export type NewEmergencyContact = typeof emergencyContacts.$inferInsert;
 export type EmergencyContact = typeof emergencyContacts.$inferSelect;
+
+export const lessons = pgTable(
+  "lessons",
+  {
+    id: uuid("id").primaryKey().defaultRandom().notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    studentId: uuid("student_id")
+      .references(() => students.id, { onDelete: "cascade" })
+      .notNull(),
+    tutorId: uuid("tutor_id")
+      .references(() => users.id, { onDelete: "restrict" })
+      .notNull(),
+    subjectId: uuid("subject_id")
+      .references(() => subjects.id, { onDelete: "restrict" })
+      .notNull(),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    status: lessonStatusEnum("status").notNull().default("scheduled"),
+    notes: text("notes"),
+  },
+  (table) => [
+    index("lessons_tutor_id_starts_at_idx").on(table.tutorId, table.startsAt),
+    index("lessons_student_id_starts_at_idx").on(table.studentId, table.startsAt),
+  ],
+);
+
+export type NewLesson = typeof lessons.$inferInsert;
+export type Lesson = typeof lessons.$inferSelect;
+export type LessonStatus = (typeof lessonStatusEnum.enumValues)[number];
