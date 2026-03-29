@@ -1,5 +1,28 @@
 import { z } from "zod";
 
+const listLessonsQueryObject = z
+  .object({
+    from: z.coerce.date(),
+    to: z.coerce.date(),
+    studentId: z.string().uuid().optional(),
+    tutorId: z.string().uuid().optional(),
+  })
+  .strict()
+  .refine((q) => q.to > q.from, {
+    message: "to must be after from",
+    path: ["to"],
+  });
+
+export const listLessonsQuerySchema = z.object({
+  query: listLessonsQueryObject,
+});
+
+export const getLessonSchema = z.object({
+  params: z.object({
+    lessonId: z.string().uuid(),
+  }),
+});
+
 export const createLessonSchema = z.object({
   body: z
     .object({

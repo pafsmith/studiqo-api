@@ -18,7 +18,7 @@ export function validate(schema: ZodType) {
           Object.assign(req.params, data.params);
         }
         if ("query" in data && data.query !== undefined) {
-          req.query = data.query as Request["query"];
+          Object.assign(req.query as object, data.query as object);
         }
       }
 

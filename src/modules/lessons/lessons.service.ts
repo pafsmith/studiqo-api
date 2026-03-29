@@ -1,15 +1,127 @@
 import { Request } from "express";
-import { requireAdminUser } from "../../common/middleware/authenticate.middleware.js";
-import { BadRequestError, NotFoundError } from "../../common/errors/errors.js";
+import {
+  requireAdminUser,
+  requireUser,
+} from "../../common/middleware/authenticate.middleware.js";
+import {
+  BadRequestError,
+  NotFoundError,
+  UserForbiddenError,
+} from "../../common/errors/errors.js";
 import { subjectsRepository } from "../subjects/subjects.repository.js";
 import { usersRepository } from "../users/users.repository.js";
 import { studentSubjectsRepository } from "../students/student-subjects.repository.js";
 import { studentsRepository } from "../students/students.repository.js";
 import { lessonsRepository } from "./lessons.repository.js";
 import { toLessonResponse } from "./lessons.mapper.js";
-import type { CreateLessonRequest, CreateLessonResponse } from "./lessons.types.js";
+import type {
+  CreateLessonRequest,
+  CreateLessonResponse,
+  LessonResponse,
+  ListLessonsQuery,
+} from "./lessons.types.js";
+
+function asBoundaryDate(value: unknown, label: string): Date {
+  const d =
+    value instanceof Date ? value : new Date(typeof value === "string" ? value : String(value));
+  if (Number.isNaN(d.getTime())) {
+    throw new BadRequestError(`Invalid ${label}`);
+  }
+  return d;
+}
 
 export const lessonsService = {
+  listLessons: async (req: Request, query: ListLessonsQuery): Promise<LessonResponse[]> => {
+    const actor = requireUser(req);
+    const from = asBoundaryDate(query.from, "from");
+    const to = asBoundaryDate(query.to, "to");
+    const { studentId, tutorId } = query;
+
+    if (actor.role === "admin") {
+      const rows = await lessonsRepository.findInRangeOverlapping({
+        from,
+        to,
+        studentId,
+        tutorId,
+      });
+      return rows.map(toLessonResponse);
+    }
+
+    if (actor.role === "parent") {
+      if (studentId !== undefined) {
+        const student = await studentsRepository.findStudentById(studentId);
+        if (!student || student.parentId !== actor.id) {
+          throw new UserForbiddenError("Access denied");
+        }
+        const rows = await lessonsRepository.findInRangeOverlapping({ from, to, studentId });
+        return rows.map(toLessonResponse);
+      }
+      const kids = await studentsRepository.findStudentsByParentId(actor.id);
+      const ids = kids.map((s) => s.id);
+      const rows = await lessonsRepository.findInRangeForParentStudents({
+        from,
+        to,
+        studentIds: ids,
+      });
+      return rows.map(toLessonResponse);
+    }
+
+    if (actor.role === "tutor") {
+      if (studentId !== undefined) {
+        const student = await studentsRepository.findStudentById(studentId);
+        if (!student || student.tutorId !== actor.id) {
+          throw new UserForbiddenError("Access denied");
+        }
+        const rows = await lessonsRepository.findInRangeOverlapping({ from, to, studentId });
+        return rows.map(toLessonResponse);
+      }
+      const assigned = await studentsRepository.findStudentByTutorId(actor.id);
+      const assignedIds = assigned.map((s) => s.id);
+      const rows = await lessonsRepository.findInRangeForTutorAccess({
+        from,
+        to,
+        tutorUserId: actor.id,
+        assignedStudentIds: assignedIds,
+      });
+      return rows.map(toLessonResponse);
+    }
+
+    throw new UserForbiddenError("Access denied");
+  },
+
+  getLesson: async (req: Request, lessonId: string): Promise<LessonResponse> => {
+    const actor = requireUser(req);
+    const lesson = await lessonsRepository.findById(lessonId);
+    if (!lesson) {
+      throw new NotFoundError("Lesson not found");
+    }
+
+    const student = await studentsRepository.findStudentById(lesson.studentId);
+    if (!student) {
+      throw new NotFoundError("Student not found");
+    }
+
+    if (actor.role === "admin") {
+      return toLessonResponse(lesson);
+    }
+
+    if (actor.role === "parent") {
+      if (student.parentId !== actor.id) {
+        throw new UserForbiddenError("Access denied");
+      }
+      return toLessonResponse(lesson);
+    }
+
+    if (actor.role === "tutor") {
+      if (lesson.tutorId === actor.id || student.tutorId === actor.id) {
+        return toLessonResponse(lesson);
+      }
+      throw new UserForbiddenError("Access denied");
+    }
+
+    throw new UserForbiddenError("Access denied");
+  },
+
   createLesson: async (
     req: Request,
     body: CreateLessonRequest,
