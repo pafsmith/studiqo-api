@@ -24,7 +24,9 @@ export const lessonsRepository = {
     return row;
   },
 
-  findInRangeOverlapping: async (params: FindLessonsInRangeParams): Promise<Lesson[]> => {
+  findInRangeOverlapping: async (
+    params: FindLessonsInRangeParams,
+  ): Promise<Lesson[]> => {
     const { from, to, studentId, tutorId } = params;
     const conditions = [overlapRange(from, to)];
     if (studentId !== undefined) {
@@ -65,7 +67,10 @@ export const lessonsRepository = {
     const { from, to, tutorUserId, assignedStudentIds } = params;
     const scope =
       assignedStudentIds.length > 0
-        ? or(eq(lessons.tutorId, tutorUserId), inArray(lessons.studentId, assignedStudentIds))
+        ? or(
+            eq(lessons.tutorId, tutorUserId),
+            inArray(lessons.studentId, assignedStudentIds),
+          )
         : eq(lessons.tutorId, tutorUserId);
     return db
       .select()

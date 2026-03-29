@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import request from "supertest";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { app } from "../../src/app.js";
 import { db } from "../../src/db/index.js";
 import { studentSubjects, students, subjects, users } from "../../src/db/schema.js";
@@ -49,10 +49,12 @@ describe("GET /api/v1/students", () => {
     expect(res.body).toEqual([]);
   });
 
-  it("returns 200 and an empty list for an admin with no students", async () => {
+  it("returns 200 and every row from the students table for an admin", async () => {
     const reg = await registerUser(adminEmail);
     adminId = reg.id;
     const session = await loginUser(adminEmail);
+
+    const [countRow] = await db.select({ total: count() }).from(students);
 
     const res = await request(app)
       .get(paths.students)
@@ -60,7 +62,8 @@ describe("GET /api/v1/students", () => {
       .expect(200)
       .expect("Content-Type", /json/);
 
-    expect(res.body).toEqual([]);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(Number(countRow.total));
   });
 
   it("returns 200 and only the parent's students for a parent user", async () => {

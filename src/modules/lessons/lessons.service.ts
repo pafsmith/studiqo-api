@@ -23,7 +23,9 @@ import type {
 
 function asBoundaryDate(value: unknown, label: string): Date {
   const d =
-    value instanceof Date ? value : new Date(typeof value === "string" ? value : String(value));
+    value instanceof Date
+      ? value
+      : new Date(typeof value === "string" ? value : String(value));
   if (Number.isNaN(d.getTime())) {
     throw new BadRequestError(`Invalid ${label}`);
   }
@@ -31,7 +33,10 @@ function asBoundaryDate(value: unknown, label: string): Date {
 }
 
 export const lessonsService = {
-  listLessons: async (req: Request, query: ListLessonsQuery): Promise<LessonResponse[]> => {
+  listLessons: async (
+    req: Request,
+    query: ListLessonsQuery,
+  ): Promise<LessonResponse[]> => {
     const actor = requireUser(req);
     const from = asBoundaryDate(query.from, "from");
     const to = asBoundaryDate(query.to, "to");
@@ -53,7 +58,11 @@ export const lessonsService = {
         if (!student || student.parentId !== actor.id) {
           throw new UserForbiddenError("Access denied");
         }
-        const rows = await lessonsRepository.findInRangeOverlapping({ from, to, studentId });
+        const rows = await lessonsRepository.findInRangeOverlapping({
+          from,
+          to,
+          studentId,
+        });
         return rows.map(toLessonResponse);
       }
       const kids = await studentsRepository.findStudentsByParentId(actor.id);
@@ -72,7 +81,11 @@ export const lessonsService = {
         if (!student || student.tutorId !== actor.id) {
           throw new UserForbiddenError("Access denied");
         }
-        const rows = await lessonsRepository.findInRangeOverlapping({ from, to, studentId });
+        const rows = await lessonsRepository.findInRangeOverlapping({
+          from,
+          to,
+          studentId,
+        });
         return rows.map(toLessonResponse);
       }
       const assigned = await studentsRepository.findStudentByTutorId(actor.id);

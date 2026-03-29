@@ -437,14 +437,8 @@ describe("GET /api/v1/lessons", () => {
   });
 
   it("allows admin to list with filters; parent and tutor see allowed lessons only", async () => {
-    const {
-      adminSession,
-      parentSession,
-      tutorSession,
-      lessonId,
-      sid,
-      tutorUserId,
-    } = await seedWithLesson();
+    const { adminSession, parentSession, tutorSession, lessonId, sid, tutorUserId } =
+      await seedWithLesson();
 
     const adminList = await request(app)
       .get(paths.lessons)
@@ -466,7 +460,9 @@ describe("GET /api/v1/lessons", () => {
       .set("Authorization", `Bearer ${adminSession.token}`)
       .query({ from: rangeDay.from, to: rangeDay.to, tutorId: tutorUserId })
       .expect(200);
-    expect(adminTutorFilter.body.some((l: { id: string }) => l.id === lessonId)).toBe(true);
+    expect(adminTutorFilter.body.some((l: { id: string }) => l.id === lessonId)).toBe(
+      true,
+    );
 
     const parentList = await request(app)
       .get(paths.lessons)
@@ -483,7 +479,10 @@ describe("GET /api/v1/lessons", () => {
       .expect(200);
     expect(tutorList.body.some((l: { id: string }) => l.id === lessonId)).toBe(true);
 
-    const otherParent = await insertUserWithRole(`other-list-${runId}@example.com`, "parent");
+    const otherParent = await insertUserWithRole(
+      `other-list-${runId}@example.com`,
+      "parent",
+    );
     const otherSession = await loginUser(`other-list-${runId}@example.com`);
     await request(app)
       .get(paths.lessons)
@@ -498,7 +497,10 @@ describe("GET /api/v1/lessons", () => {
     adminId = admin.id;
     await loginUser(adminEmail);
 
-    const lonelyParent = await insertUserWithRole(`lonely-${runId}@example.com`, "parent");
+    const lonelyParent = await insertUserWithRole(
+      `lonely-${runId}@example.com`,
+      "parent",
+    );
     const lonelySession = await loginUser(`lonely-${runId}@example.com`);
 
     const listRes = await request(app)
@@ -625,7 +627,10 @@ describe("GET /api/v1/lessons/:lessonId", () => {
   it("returns 403 when parent or tutor is not allowed", async () => {
     const { lessonId, adminSession } = await seedWithLesson();
 
-    const otherParent = await insertUserWithRole(`other-get-${runId}@example.com`, "parent");
+    const otherParent = await insertUserWithRole(
+      `other-get-${runId}@example.com`,
+      "parent",
+    );
     const otherParentSession = await loginUser(`other-get-${runId}@example.com`);
 
     await request(app)
@@ -633,7 +638,10 @@ describe("GET /api/v1/lessons/:lessonId", () => {
       .set("Authorization", `Bearer ${otherParentSession.token}`)
       .expect(403);
 
-    const otherTutor = await insertUserWithRole(`other-tutor-get-${runId}@example.com`, "tutor");
+    const otherTutor = await insertUserWithRole(
+      `other-tutor-get-${runId}@example.com`,
+      "tutor",
+    );
     const otherTutorSession = await loginUser(`other-tutor-get-${runId}@example.com`);
 
     await request(app)
@@ -651,7 +659,8 @@ describe("GET /api/v1/lessons/:lessonId", () => {
   });
 
   it("allows admin, owning parent, and assigned tutor", async () => {
-    const { adminSession, parentSession, tutorSession, lessonId } = await seedWithLesson();
+    const { adminSession, parentSession, tutorSession, lessonId } =
+      await seedWithLesson();
 
     const adminRes = await request(app)
       .get(paths.lesson(lessonId))

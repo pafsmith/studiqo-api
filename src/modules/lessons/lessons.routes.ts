@@ -15,19 +15,11 @@ export const lessonsRoutes = Router();
 
 lessonsRoutes.use(authenticate);
 
-lessonsRoutes.get(
-  "/",
-  validate(listLessonsQuerySchema),
-  lessonsController.listLessons,
-);
+lessonsRoutes.get("/", validate(listLessonsQuerySchema), lessonsController.listLessons);
 lessonsRoutes.post(
   "/",
   requireAdmin,
   validate(createLessonSchema),
   lessonsController.createLesson,
 );
-lessonsRoutes.get(
-  "/:lessonId",
-  validate(getLessonSchema),
-  lessonsController.getLesson,
-);
+lessonsRoutes.get("/:lessonId", validate(getLessonSchema), lessonsController.getLesson);
