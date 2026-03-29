@@ -1,5 +1,12 @@
 import type { LessonStatus } from "../../db/schema.js";
 
+export type ListLessonsQuery = {
+  from: Date;
+  to: Date;
+  studentId?: string;
+  tutorId?: string;
+};
+
 export type CreateLessonRequest = {
   studentId: string;
   tutorId: string;
