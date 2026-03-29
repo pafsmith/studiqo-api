@@ -16,6 +16,7 @@ export const paths = {
   users: "/api/v1/users",
   subjects: "/api/v1/subjects",
   lessons: "/api/v1/lessons",
+  lesson: (lessonId: string) => `/api/v1/lessons/${lessonId}`,
   studentSubjects: (studentId: string) => `/api/v1/students/${studentId}/subjects`,
 } as const;
 
