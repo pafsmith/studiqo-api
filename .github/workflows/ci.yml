@@ -45,6 +45,9 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      - name: OpenAPI (Redocly)
+        run: npm run docs:lint
+
       - name: Typecheck
         run: npm run build
 
