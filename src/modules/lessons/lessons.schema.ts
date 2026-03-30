@@ -23,6 +23,13 @@ export const getLessonSchema = z.object({
   }),
 });
 
+export const cancelLessonSchema = z.object({
+  params: z.object({
+    lessonId: z.string().uuid(),
+  }),
+  body: z.object({}).strict().optional().default({}),
+});
+
 export const createLessonSchema = z.object({
   body: z
     .object({

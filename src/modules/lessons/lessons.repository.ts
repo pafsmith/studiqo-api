@@ -1,6 +1,11 @@
 import { and, asc, eq, gt, inArray, lt, or } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { lessons, type Lesson, type NewLesson } from "../../db/schema.js";
+import {
+  lessons,
+  type Lesson,
+  type LessonStatus,
+  type NewLesson,
+} from "../../db/schema.js";
 
 function overlapRange(from: Date, to: Date) {
   return and(lt(lessons.startsAt, to), gt(lessons.endsAt, from));
@@ -21,6 +26,18 @@ export const lessonsRepository = {
 
   findById: async (id: string): Promise<Lesson | undefined> => {
     const [row] = await db.select().from(lessons).where(eq(lessons.id, id));
+    return row;
+  },
+
+  updateStatusById: async (
+    id: string,
+    status: LessonStatus,
+  ): Promise<Lesson | undefined> => {
+    const [row] = await db
+      .update(lessons)
+      .set({ status })
+      .where(eq(lessons.id, id))
+      .returning();
     return row;
   },
 
