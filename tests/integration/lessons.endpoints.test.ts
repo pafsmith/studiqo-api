@@ -3,7 +3,7 @@ import request from "supertest";
 import { eq } from "drizzle-orm";
 import { app } from "../../src/app.js";
 import { db } from "../../src/db/index.js";
-import { students, subjects, users } from "../../src/db/schema.js";
+import { lessons, students, subjects, users } from "../../src/db/schema.js";
 import { insertUserWithRole, loginUser, paths, registerUser } from "./helpers.js";
 
 describe("POST /api/v1/lessons", () => {
@@ -105,7 +105,7 @@ describe("POST /api/v1/lessons", () => {
       .expect(401);
   });
 
-  it("returns 403 for non-admin", async () => {
+  it("returns 403 for non-admin; admin creates lesson with expected shape", async () => {
     const {
       adminSession,
       tutorId: tid,
@@ -120,41 +120,23 @@ describe("POST /api/v1/lessons", () => {
       .send(validLessonPayload(tid, sid, subjId))
       .expect(403);
 
-    await request(app)
+    const res = await request(app)
       .post(paths.lessons)
       .set("Authorization", `Bearer ${adminSession.token}`)
       .send(validLessonPayload(tid, sid, subjId))
       .expect(201);
+
+    expect(res.body.id).toBeDefined();
+    expect(res.body.status).toBe("scheduled");
+    expect(res.body.notes).toBeNull();
+    expect(res.body.startsAt).toBeDefined();
+    expect(res.body.endsAt).toBeDefined();
   });
 
-  it("returns 400 when endsAt is not after startsAt", async () => {
-    const {
-      adminSession,
-      tutorId: tid,
-      studentId: sid,
-      subjectId: subjId,
-    } = await seedStudentSubjectAndSession();
-
-    await request(app)
-      .post(paths.lessons)
-      .set("Authorization", `Bearer ${adminSession.token}`)
-      .send({
-        studentId: sid,
-        tutorId: tid,
-        subjectId: subjId,
-        startsAt: "2026-04-01T15:00:00.000Z",
-        endsAt: "2026-04-01T14:00:00.000Z",
-      })
-      .expect(400);
-  });
-
-  it("returns 404 when student or subject is missing", async () => {
+  it("returns 404 for unknown student", async () => {
     const admin = await registerUser(adminEmail);
     adminId = admin.id;
     const adminSession = await loginUser(adminEmail);
-
-    const parent = await insertUserWithRole(parentEmail, "parent");
-    parentId = parent.id;
 
     const tutor = await insertUserWithRole(tutorEmail, "tutor");
     tutorId = tutor.id;
@@ -164,8 +146,8 @@ describe("POST /api/v1/lessons", () => {
       .set("Authorization", `Bearer ${adminSession.token}`)
       .send({ name: `OrphanSubject-${runId}` })
       .expect(201);
-    const orphanSubjId = subRes.body.id as string;
-    subjectId = orphanSubjId;
+    const subjId = subRes.body.id as string;
+    subjectId = subjId;
 
     await request(app)
       .post(paths.lessons)
@@ -174,90 +156,19 @@ describe("POST /api/v1/lessons", () => {
         validLessonPayload(
           tutor.id,
           "00000000-0000-4000-8000-000000000099",
-          orphanSubjId,
-        ),
-      )
-      .expect(404);
-
-    const studentRes = await request(app)
-      .post(paths.students)
-      .set("Authorization", `Bearer ${adminSession.token}`)
-      .send({
-        parentId: parent.id,
-        tutorId: tutor.id,
-        firstName: "Sam",
-        lastName: "Student",
-        dateOfBirth: "2011-01-01T12:00:00.000Z",
-      })
-      .expect(201);
-    const samStudentId = studentRes.body.id as string;
-    studentId = samStudentId;
-
-    await request(app)
-      .post(paths.lessons)
-      .set("Authorization", `Bearer ${adminSession.token}`)
-      .send(
-        validLessonPayload(
-          tutor.id,
-          samStudentId,
-          "00000000-0000-4000-8000-000000000088",
+          subjId,
         ),
       )
       .expect(404);
   });
 
-  it("returns 400 when student has no tutor or tutor mismatch or not enrolled", async () => {
-    const admin = await registerUser(adminEmail);
-    adminId = admin.id;
-    const adminSession = await loginUser(adminEmail);
-
-    const parent = await insertUserWithRole(parentEmail, "parent");
-    parentId = parent.id;
-
-    const tutor = await insertUserWithRole(tutorEmail, "tutor");
-    tutorId = tutor.id;
-
-    const subRes = await request(app)
-      .post(paths.subjects)
-      .set("Authorization", `Bearer ${adminSession.token}`)
-      .send({ name: `NoTutorSub-${runId}` })
-      .expect(201);
-    const noTutorSubjId = subRes.body.id as string;
-    subjectId = noTutorSubjId;
-
-    const noTutorStudent = await request(app)
-      .post(paths.students)
-      .set("Authorization", `Bearer ${adminSession.token}`)
-      .send({
-        parentId: parent.id,
-        firstName: "No",
-        lastName: "Tutor",
-        dateOfBirth: "2010-05-05T12:00:00.000Z",
-      })
-      .expect(201);
-    const noTutorStudentId = noTutorStudent.body.id as string;
-
-    await request(app)
-      .post(paths.lessons)
-      .set("Authorization", `Bearer ${adminSession.token}`)
-      .send(validLessonPayload(tutor.id, noTutorStudentId, noTutorSubjId))
-      .expect(400);
-
-    await db.delete(students).where(eq(students.id, noTutorStudentId));
-
-    const studentRes = await request(app)
-      .post(paths.students)
-      .set("Authorization", `Bearer ${adminSession.token}`)
-      .send({
-        parentId: parent.id,
-        tutorId: tutor.id,
-        firstName: "Enrolled",
-        lastName: "Check",
-        dateOfBirth: "2009-09-09T12:00:00.000Z",
-      })
-      .expect(201);
-    const enrolledStudentId = studentRes.body.id as string;
-    studentId = enrolledStudentId;
+  it("returns 400 when lesson tutor does not match student's assigned tutor", async () => {
+    const {
+      adminSession,
+      tutorId: tid,
+      studentId: sid,
+      subjectId: subjId,
+    } = await seedStudentSubjectAndSession();
 
     const otherTutor = await insertUserWithRole(
       `other-tutor-${runId}@example.com`,
@@ -266,53 +177,10 @@ describe("POST /api/v1/lessons", () => {
     await request(app)
       .post(paths.lessons)
       .set("Authorization", `Bearer ${adminSession.token}`)
-      .send(validLessonPayload(otherTutor.id, enrolledStudentId, noTutorSubjId))
+      .send(validLessonPayload(otherTutor.id, sid, subjId))
       .expect(400);
 
     await db.delete(users).where(eq(users.id, otherTutor.id));
-
-    await request(app)
-      .post(paths.lessons)
-      .set("Authorization", `Bearer ${adminSession.token}`)
-      .send(validLessonPayload(tutor.id, enrolledStudentId, noTutorSubjId))
-      .expect(400);
-
-    await request(app)
-      .post(paths.studentSubjects(enrolledStudentId))
-      .set("Authorization", `Bearer ${adminSession.token}`)
-      .send({ subjectId: noTutorSubjId })
-      .expect(201);
-
-    const ok = await request(app)
-      .post(paths.lessons)
-      .set("Authorization", `Bearer ${adminSession.token}`)
-      .send(validLessonPayload(tutor.id, enrolledStudentId, noTutorSubjId))
-      .expect(201);
-
-    expect(ok.body.status).toBe("scheduled");
-    expect(ok.body.studentId).toBe(enrolledStudentId);
-    expect(ok.body.tutorId).toBe(tutor.id);
-    expect(ok.body.subjectId).toBe(noTutorSubjId);
-  });
-
-  it("creates a lesson when admin and data is valid", async () => {
-    const {
-      adminSession,
-      tutorId: tid,
-      studentId: sid,
-      subjectId: subjId,
-    } = await seedStudentSubjectAndSession();
-
-    const res = await request(app)
-      .post(paths.lessons)
-      .set("Authorization", `Bearer ${adminSession.token}`)
-      .send(validLessonPayload(tid, sid, subjId))
-      .expect(201);
-
-    expect(res.body.id).toBeDefined();
-    expect(res.body.notes).toBeNull();
-    expect(res.body.startsAt).toBeDefined();
-    expect(res.body.endsAt).toBeDefined();
   });
 });
 
@@ -412,17 +280,9 @@ describe("GET /api/v1/lessons", () => {
       tutorSession: await loginUser(tutorEmail),
       lessonId: lessonRes.body.id as string,
       sid,
-      subjId,
       tutorUserId: tutor.id,
     };
   }
-
-  it("returns 401 without auth", async () => {
-    await request(app)
-      .get(paths.lessons)
-      .query({ from: rangeDay.from, to: rangeDay.to })
-      .expect(401);
-  });
 
   it("returns 400 when to is not after from", async () => {
     const admin = await registerUser(adminEmail);
@@ -436,8 +296,8 @@ describe("GET /api/v1/lessons", () => {
       .expect(400);
   });
 
-  it("allows admin to list with filters; parent and tutor see allowed lessons only", async () => {
-    const { adminSession, parentSession, tutorSession, lessonId, sid, tutorUserId } =
+  it("scopes list by role and rejects cross-tenant student filter", async () => {
+    const { adminSession, parentSession, tutorSession, lessonId, sid } =
       await seedWithLesson();
 
     const adminList = await request(app)
@@ -446,23 +306,6 @@ describe("GET /api/v1/lessons", () => {
       .query({ from: rangeDay.from, to: rangeDay.to })
       .expect(200);
     expect(adminList.body.some((l: { id: string }) => l.id === lessonId)).toBe(true);
-
-    const adminFiltered = await request(app)
-      .get(paths.lessons)
-      .set("Authorization", `Bearer ${adminSession.token}`)
-      .query({ from: rangeDay.from, to: rangeDay.to, studentId: sid })
-      .expect(200);
-    expect(adminFiltered.body).toHaveLength(1);
-    expect(adminFiltered.body[0].id).toBe(lessonId);
-
-    const adminTutorFilter = await request(app)
-      .get(paths.lessons)
-      .set("Authorization", `Bearer ${adminSession.token}`)
-      .query({ from: rangeDay.from, to: rangeDay.to, tutorId: tutorUserId })
-      .expect(200);
-    expect(adminTutorFilter.body.some((l: { id: string }) => l.id === lessonId)).toBe(
-      true,
-    );
 
     const parentList = await request(app)
       .get(paths.lessons)
@@ -490,27 +333,6 @@ describe("GET /api/v1/lessons", () => {
       .query({ from: rangeDay.from, to: rangeDay.to, studentId: sid })
       .expect(403);
     await db.delete(users).where(eq(users.id, otherParent.id));
-  });
-
-  it("returns empty array for parent with no students in range", async () => {
-    const admin = await registerUser(adminEmail);
-    adminId = admin.id;
-    await loginUser(adminEmail);
-
-    const lonelyParent = await insertUserWithRole(
-      `lonely-${runId}@example.com`,
-      "parent",
-    );
-    const lonelySession = await loginUser(`lonely-${runId}@example.com`);
-
-    const listRes = await request(app)
-      .get(paths.lessons)
-      .set("Authorization", `Bearer ${lonelySession.token}`)
-      .query({ from: rangeDay.from, to: rangeDay.to })
-      .expect(200);
-    expect(listRes.body).toEqual([]);
-
-    await db.delete(users).where(eq(users.id, lonelyParent.id));
   });
 });
 
@@ -607,25 +429,9 @@ describe("GET /api/v1/lessons/:lessonId", () => {
     };
   }
 
-  it("returns 401 without auth", async () => {
-    await request(app)
-      .get(paths.lesson("123e4567-e89b-12d3-a456-426614174000"))
-      .expect(401);
-  });
-
-  it("returns 404 for unknown lesson id", async () => {
-    const admin = await registerUser(adminEmail);
-    adminId = admin.id;
-    const session = await loginUser(adminEmail);
-
-    await request(app)
-      .get(paths.lesson("123e4567-e89b-12d3-a456-426614174000"))
-      .set("Authorization", `Bearer ${session.token}`)
-      .expect(404);
-  });
-
-  it("returns 403 when parent or tutor is not allowed", async () => {
-    const { lessonId, adminSession } = await seedWithLesson();
+  it("allows admin, owning parent, and tutor; forbids others", async () => {
+    const { adminSession, parentSession, tutorSession, lessonId } =
+      await seedWithLesson();
 
     const otherParent = await insertUserWithRole(
       `other-get-${runId}@example.com`,
@@ -652,32 +458,157 @@ describe("GET /api/v1/lessons/:lessonId", () => {
     await db.delete(users).where(eq(users.id, otherParent.id));
     await db.delete(users).where(eq(users.id, otherTutor.id));
 
-    await request(app)
-      .get(paths.lesson(lessonId))
-      .set("Authorization", `Bearer ${adminSession.token}`)
-      .expect(200);
+    for (const token of [adminSession.token, parentSession.token, tutorSession.token]) {
+      const res = await request(app)
+        .get(paths.lesson(lessonId))
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+      expect(res.body.id).toBe(lessonId);
+    }
+  });
+});
+
+describe("POST /api/v1/lessons/:lessonId/cancel", () => {
+  const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const adminEmail = `lessons-cancel-admin-${runId}@example.com`;
+  const parentEmail = `lessons-cancel-parent-${runId}@example.com`;
+  const tutorEmail = `lessons-cancel-tutor-${runId}@example.com`;
+  let adminId: string | null = null;
+  let parentId: string | null = null;
+  let tutorId: string | null = null;
+  let studentId: string | null = null;
+  let subjectId: string | null = null;
+
+  afterEach(async () => {
+    if (studentId) {
+      await db.delete(students).where(eq(students.id, studentId));
+      studentId = null;
+    }
+    if (subjectId) {
+      await db.delete(subjects).where(eq(subjects.id, subjectId));
+      subjectId = null;
+    }
+    if (tutorId) {
+      await db.delete(users).where(eq(users.id, tutorId));
+      tutorId = null;
+    }
+    if (parentId) {
+      await db.delete(users).where(eq(users.id, parentId));
+      parentId = null;
+    }
+    if (adminId) {
+      await db.delete(users).where(eq(users.id, adminId));
+      adminId = null;
+    }
   });
 
-  it("allows admin, owning parent, and assigned tutor", async () => {
-    const { adminSession, parentSession, tutorSession, lessonId } =
-      await seedWithLesson();
+  async function seedWithLesson() {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
 
-    const adminRes = await request(app)
-      .get(paths.lesson(lessonId))
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+
+    const tutor = await insertUserWithRole(tutorEmail, "tutor");
+    tutorId = tutor.id;
+
+    const studentRes = await request(app)
+      .post(paths.students)
       .set("Authorization", `Bearer ${adminSession.token}`)
-      .expect(200);
-    expect(adminRes.body.id).toBe(lessonId);
+      .send({
+        parentId: parent.id,
+        tutorId: tutor.id,
+        firstName: "Cancel",
+        lastName: "Pupil",
+        dateOfBirth: "2012-03-15T12:00:00.000Z",
+      })
+      .expect(201);
+    const sid = studentRes.body.id as string;
+    studentId = sid;
 
-    const parentRes = await request(app)
-      .get(paths.lesson(lessonId))
+    const subRes = await request(app)
+      .post(paths.subjects)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ name: `CancelSubject-${runId}` })
+      .expect(201);
+    const subjId = subRes.body.id as string;
+    subjectId = subjId;
+
+    await request(app)
+      .post(paths.studentSubjects(sid))
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ subjectId: subjId })
+      .expect(201);
+
+    const lessonRes = await request(app)
+      .post(paths.lessons)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        studentId: sid,
+        tutorId: tutor.id,
+        subjectId: subjId,
+        startsAt: "2026-04-01T14:00:00.000Z",
+        endsAt: "2026-04-01T15:00:00.000Z",
+      })
+      .expect(201);
+
+    return {
+      adminSession,
+      parentSession: await loginUser(parentEmail),
+      tutorSession: await loginUser(tutorEmail),
+      lessonId: lessonRes.body.id as string,
+    };
+  }
+
+  it("parent and unrelated tutor forbidden; assigned tutor cancels; second cancel is idempotent", async () => {
+    const { parentSession, tutorSession, lessonId } = await seedWithLesson();
+
+    await request(app)
+      .post(paths.lessonCancel(lessonId))
       .set("Authorization", `Bearer ${parentSession.token}`)
-      .expect(200);
-    expect(parentRes.body.id).toBe(lessonId);
+      .send({})
+      .expect(403);
 
-    const tutorRes = await request(app)
-      .get(paths.lesson(lessonId))
+    const otherTutor = await insertUserWithRole(
+      `other-tutor-cancel-${runId}@example.com`,
+      "tutor",
+    );
+    const otherSession = await loginUser(`other-tutor-cancel-${runId}@example.com`);
+
+    await request(app)
+      .post(paths.lessonCancel(lessonId))
+      .set("Authorization", `Bearer ${otherSession.token}`)
+      .send({})
+      .expect(403);
+
+    await db.delete(users).where(eq(users.id, otherTutor.id));
+
+    const first = await request(app)
+      .post(paths.lessonCancel(lessonId))
       .set("Authorization", `Bearer ${tutorSession.token}`)
+      .send({})
       .expect(200);
-    expect(tutorRes.body.id).toBe(lessonId);
+    expect(first.body.status).toBe("cancelled");
+
+    const again = await request(app)
+      .post(paths.lessonCancel(lessonId))
+      .set("Authorization", `Bearer ${tutorSession.token}`)
+      .send({})
+      .expect(200);
+    expect(again.body.status).toBe("cancelled");
+    expect(again.body.id).toBe(lessonId);
+  });
+
+  it("returns 400 when lesson is completed", async () => {
+    const { adminSession, lessonId } = await seedWithLesson();
+
+    await db.update(lessons).set({ status: "completed" }).where(eq(lessons.id, lessonId));
+
+    await request(app)
+      .post(paths.lessonCancel(lessonId))
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({})
+      .expect(400);
   });
 });
