@@ -161,7 +161,6 @@ describe("POST /api/v1/lessons", () => {
   it("returns 400 when lesson tutor does not match student's assigned tutor", async () => {
     const {
       adminSession,
-      tutorId: tid,
       studentId: sid,
       subjectId: subjId,
     } = await seedStudentSubjectAndSession();
