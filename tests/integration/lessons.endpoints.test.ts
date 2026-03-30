@@ -153,11 +153,7 @@ describe("POST /api/v1/lessons", () => {
       .post(paths.lessons)
       .set("Authorization", `Bearer ${adminSession.token}`)
       .send(
-        validLessonPayload(
-          tutor.id,
-          "00000000-0000-4000-8000-000000000099",
-          subjId,
-        ),
+        validLessonPayload(tutor.id, "00000000-0000-4000-8000-000000000099", subjId),
       )
       .expect(404);
   });
@@ -603,7 +599,10 @@ describe("POST /api/v1/lessons/:lessonId/cancel", () => {
   it("returns 400 when lesson is completed", async () => {
     const { adminSession, lessonId } = await seedWithLesson();
 
-    await db.update(lessons).set({ status: "completed" }).where(eq(lessons.id, lessonId));
+    await db
+      .update(lessons)
+      .set({ status: "completed" })
+      .where(eq(lessons.id, lessonId));
 
     await request(app)
       .post(paths.lessonCancel(lessonId))

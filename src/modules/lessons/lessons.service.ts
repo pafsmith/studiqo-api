@@ -187,7 +187,10 @@ export const lessonsService = {
     return toLessonResponse(lesson);
   },
 
-  cancelLesson: async (req: Request, lessonId: string): Promise<CancelLessonResponse> => {
+  cancelLesson: async (
+    req: Request,
+    lessonId: string,
+  ): Promise<CancelLessonResponse> => {
     const actor = requireUser(req);
 
     if (actor.role === "parent") {
