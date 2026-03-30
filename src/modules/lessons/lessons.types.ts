@@ -29,3 +29,5 @@ export type LessonResponse = {
 };
 
 export type CreateLessonResponse = LessonResponse;
+
+export type CancelLessonResponse = LessonResponse;
