@@ -15,9 +15,11 @@
     "test:unit": "vitest run tests/unit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "docs:lint": "redocly lint",
+    "docs:preview": "redocly preview",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "ci": "npm run format:check && npm run lint && npm run build && npm test"
+    "ci": "npm run format:check && npm run lint && npm run docs:lint && npm run build && npm test"
   },
   "keywords": [],
   "author": "",
@@ -38,6 +40,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@redocly/cli": "^2.25.2",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/morgan": "^1.9.10",
@@ -52,6 +55,7 @@
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.57.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "yaml": "^2.8.3"
   }
 }

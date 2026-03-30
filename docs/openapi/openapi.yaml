@@ -1,0 +1,1359 @@
+openapi: 3.1.0
+info:
+  title: Studiqo API
+  version: 1.0.0
+  license:
+    name: UNLICENSED
+    identifier: UNLICENSED
+  description: |
+    HTTP API for Studiqo (tutor management). Base path `/api/v1`.
+
+    **Conventions**
+    - Request and response bodies are JSON (`application/json`).
+    - UUIDs are strings in standard UUID format.
+    - Timestamps are ISO 8601 date-time strings (e.g. `2026-04-01T14:00:00.000Z`).
+    - Unless noted, error responses use schema `Error` with HTTP 400, 401, 403, 404, or 409.
+
+    **Authentication**
+    - Most routes require `Authorization: Bearer <access_token>` (JWT).
+    - `POST /auth/refresh` and `POST /auth/logout` expect `Authorization: Bearer <refresh_token>` (opaque refresh token from login), not the access JWT.
+
+servers:
+  - url: http://localhost:{port}/api/v1
+    description: Local development
+    variables:
+      port:
+        default: "3000"
+
+tags:
+  - name: Health
+  - name: Auth
+  - name: Users
+  - name: Subjects
+  - name: Students
+  - name: Lessons
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: getHealth
+      security: []
+      responses:
+        "200":
+          description: API is running
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message]
+                properties:
+                  message:
+                    type: string
+                    example: API is running
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      operationId: registerUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPublic"
+        "400":
+          description: Validation or duplicate email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in
+      operationId: loginUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Access and refresh tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Current user (from access JWT)
+      operationId: getMe
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user profile (no tokens)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPublic"
+        "401":
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Issue a new access JWT (refresh token in Authorization header)
+      operationId: refreshToken
+      description: |
+        Send `Authorization: Bearer <refresh_token>` (the value returned as `refreshToken` from login).
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: New access JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshTokenResponse"
+        "401":
+          description: Invalid authorization header
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Refresh token not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke refresh token
+      operationId: logoutUser
+      description: |
+        Send `Authorization: Bearer <refresh_token>` to revoke it.
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Logged out
+        "401":
+          description: Invalid authorization header
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/{userId}:
+    put:
+      tags: [Users]
+      summary: Update user
+      operationId: updateUser
+      description: Admin only. At least one of `email` or `role` must be provided.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPublic"
+        "400":
+          description: Validation or duplicate email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [Users]
+      summary: Delete user
+      operationId: deleteUser
+      description: Admin only.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204":
+          description: User deleted
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /subjects:
+    post:
+      tags: [Subjects]
+      summary: Create subject
+      operationId: createSubject
+      description: Admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSubjectRequest"
+      responses:
+        "201":
+          description: Subject created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subject"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /students:
+    get:
+      tags: [Students]
+      summary: List students
+      operationId: listStudents
+      description: |
+        Admins see all students. Parents see their children. Tutors see students assigned to them.
+      responses:
+        "200":
+          description: Students visible to the caller
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Student"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden for this role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags: [Students]
+      summary: Create student
+      operationId: createStudent
+      description: Admin only. `parentId` must reference a user with role `parent`. Optional `tutorId` must reference a `tutor`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStudentRequest"
+      responses:
+        "201":
+          description: Student created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Admin only or invalid parent/tutor role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Parent or tutor not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /students/{studentId}:
+    get:
+      tags: [Students]
+      summary: Get student by id
+      operationId: getStudent
+      description: Admin, or parent/tutor with access to this student.
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      responses:
+        "200":
+          description: Student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      tags: [Students]
+      summary: Update student
+      operationId: updateStudent
+      description: Admin only. At least one field required.
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStudentRequest"
+      responses:
+        "200":
+          description: Updated student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Admin only or invalid parent/tutor role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Student, parent, or tutor not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [Students]
+      summary: Delete student
+      operationId: deleteStudent
+      description: Admin only.
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      responses:
+        "204":
+          description: Student deleted
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /students/{studentId}/subjects:
+    get:
+      tags: [Students]
+      summary: List subjects for a student
+      operationId: getStudentSubjects
+      description: Admin, or parent/tutor with access to this student.
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      responses:
+        "200":
+          description: Enrolled subjects with grades
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudentSubject"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags: [Students]
+      summary: Link student to subject
+      operationId: linkStudentSubject
+      description: Admin only. Enrolls the student in a subject (grades optional).
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LinkStudentSubjectRequest"
+      responses:
+        "201":
+          description: Link created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentSubjectLink"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Student or subject not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Student already linked to this subject
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /students/{studentId}/emergency-contacts:
+    get:
+      tags: [Students]
+      summary: List emergency contacts
+      operationId: listEmergencyContacts
+      description: Admin, or parent/tutor with access to this student.
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      responses:
+        "200":
+          description: Emergency contacts (max two per student)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EmergencyContact"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags: [Students]
+      summary: Create emergency contact
+      operationId: createEmergencyContact
+      description: Admin only. Maximum two contacts per student. Phone must match E.164-style rules enforced by the server.
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEmergencyContactRequest"
+      responses:
+        "201":
+          description: Contact created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmergencyContact"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Maximum emergency contacts reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /students/{studentId}/emergency-contacts/{contactId}:
+    put:
+      tags: [Students]
+      summary: Update emergency contact
+      operationId: updateEmergencyContact
+      description: Admin only. At least one field required.
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+        - $ref: "#/components/parameters/ContactId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEmergencyContactRequest"
+      responses:
+        "200":
+          description: Updated contact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmergencyContact"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Student or contact not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [Students]
+      summary: Delete emergency contact
+      operationId: deleteEmergencyContact
+      description: Admin only.
+      parameters:
+        - $ref: "#/components/parameters/StudentId"
+        - $ref: "#/components/parameters/ContactId"
+      responses:
+        "204":
+          description: Contact deleted
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Student or contact not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /lessons:
+    get:
+      tags: [Lessons]
+      summary: List lessons in a time range
+      operationId: listLessons
+      description: |
+        Scoped by role: admins see all (optional filters); parents see their children; tutors see their lessons and assigned students.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: studentId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: tutorId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Lessons overlapping the range
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Lesson"
+        "400":
+          description: Invalid query (e.g. `to` not after `from`)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden for this actor or query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      tags: [Lessons]
+      summary: Create a lesson
+      operationId: createLesson
+      description: Admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLessonRequest"
+      responses:
+        "201":
+          description: Lesson created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+        "400":
+          description: Validation or business rule error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Caller is not an admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Related resource not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /lessons/{lessonId}:
+    get:
+      tags: [Lessons]
+      summary: Get lesson by id
+      operationId: getLesson
+      parameters:
+        - $ref: "#/components/parameters/LessonId"
+      responses:
+        "200":
+          description: Lesson
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Not allowed to view this lesson
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Lesson or student not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /lessons/{lessonId}/cancel:
+    post:
+      tags: [Lessons]
+      summary: Cancel a lesson
+      operationId: cancelLesson
+      description: |
+        Admin or assigned tutor (same rules as viewing the lesson). Parents cannot cancel via this endpoint.
+        Idempotent if already `cancelled`. Cannot cancel a `completed` lesson.
+      parameters:
+        - $ref: "#/components/parameters/LessonId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+            example: {}
+      responses:
+        "200":
+          description: Lesson (status `cancelled` or unchanged if already cancelled)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+        "400":
+          description: Invalid transition (e.g. lesson already completed)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Only admin or assigned tutor may cancel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Lesson or student not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        Access JWT in Authorization header unless the operation states refresh token.
+
+  parameters:
+    LessonId:
+      name: lessonId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    StudentId:
+      name: studentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ContactId:
+      name: contactId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+      additionalProperties: false
+
+    UserRole:
+      type: string
+      enum: [tutor, parent, admin]
+
+    UserPublic:
+      type: object
+      required: [id, email, role, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/UserRole"
+        createdAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 100
+          description: |
+            Must include upper, lower, digit, and special character (see server validation).
+      additionalProperties: false
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      additionalProperties: false
+
+    LoginResponse:
+      type: object
+      required: [id, email, role, createdAt, token, refreshToken]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/UserRole"
+        createdAt:
+          type: string
+          format: date-time
+        token:
+          type: string
+          description: Access JWT
+        refreshToken:
+          type: string
+          description: Opaque refresh token (use with `/auth/refresh` and `/auth/logout`)
+      additionalProperties: false
+
+    RefreshTokenResponse:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: New access JWT
+      additionalProperties: false
+
+    UpdateUserRequest:
+      type: object
+      minProperties: 1
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/UserRole"
+      additionalProperties: false
+
+    CreateSubjectRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+      additionalProperties: false
+
+    Subject:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      additionalProperties: false
+
+    Student:
+      type: object
+      required:
+        - id
+        - parentId
+        - tutorId
+        - firstName
+        - lastName
+        - dateOfBirth
+      properties:
+        id:
+          type: string
+          format: uuid
+        parentId:
+          type: string
+          format: uuid
+        tutorId:
+          oneOf:
+            - type: string
+              format: uuid
+            - type: "null"
+        firstName:
+          type: string
+        lastName:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date-time
+      additionalProperties: false
+
+    CreateStudentRequest:
+      type: object
+      required: [parentId, firstName, lastName, dateOfBirth]
+      properties:
+        parentId:
+          type: string
+          format: uuid
+        tutorId:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 255
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 255
+        dateOfBirth:
+          type: string
+          format: date-time
+      additionalProperties: false
+
+    UpdateStudentRequest:
+      type: object
+      minProperties: 1
+      properties:
+        parentId:
+          type: string
+          format: uuid
+        tutorId:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 255
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 255
+        dateOfBirth:
+          type: string
+          format: date-time
+      additionalProperties: false
+
+    StudentSubject:
+      type: object
+      required:
+        - subjectId
+        - subjectName
+        - currentGrade
+        - predictedGrade
+        - createdAt
+        - updatedAt
+      properties:
+        subjectId:
+          type: string
+          format: uuid
+        subjectName:
+          type: string
+        currentGrade:
+          oneOf:
+            - type: string
+            - type: "null"
+        predictedGrade:
+          oneOf:
+            - type: string
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+
+    StudentSubjectLink:
+      type: object
+      required:
+        - studentId
+        - subjectId
+        - currentGrade
+        - predictedGrade
+        - createdAt
+        - updatedAt
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+        currentGrade:
+          oneOf:
+            - type: string
+            - type: "null"
+        predictedGrade:
+          oneOf:
+            - type: string
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+
+    LinkStudentSubjectRequest:
+      type: object
+      required: [subjectId]
+      properties:
+        subjectId:
+          type: string
+          format: uuid
+        currentGrade:
+          type: string
+          maxLength: 32
+        predictedGrade:
+          type: string
+          maxLength: 32
+      additionalProperties: false
+
+    EmergencyContact:
+      type: object
+      required:
+        - id
+        - studentId
+        - name
+        - phone
+        - relationship
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phone:
+          type: string
+          pattern: "^\\+?[1-9]\\d{1,14}$"
+        relationship:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+
+    CreateEmergencyContactRequest:
+      type: object
+      required: [name, phone, relationship]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        phone:
+          type: string
+          pattern: "^\\+?[1-9]\\d{1,14}$"
+        relationship:
+          type: string
+          minLength: 1
+          maxLength: 63
+      additionalProperties: false
+
+    UpdateEmergencyContactRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        phone:
+          type: string
+          pattern: "^\\+?[1-9]\\d{1,14}$"
+        relationship:
+          type: string
+          minLength: 1
+          maxLength: 63
+      additionalProperties: false
+
+    LessonStatus:
+      type: string
+      enum: [scheduled, completed, cancelled, no_show]
+
+    Lesson:
+      type: object
+      required:
+        - id
+        - createdAt
+        - updatedAt
+        - studentId
+        - tutorId
+        - subjectId
+        - startsAt
+        - endsAt
+        - status
+        - notes
+      properties:
+        id:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        studentId:
+          type: string
+          format: uuid
+        tutorId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/LessonStatus"
+        notes:
+          oneOf:
+            - type: string
+            - type: "null"
+      additionalProperties: false
+
+    CreateLessonRequest:
+      type: object
+      required: [studentId, tutorId, subjectId, startsAt, endsAt]
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        tutorId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+      additionalProperties: false

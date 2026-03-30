@@ -22,7 +22,7 @@ This repository contains the **public backend API** for Studiqo.
 
 **Frontend repository:** _TODO: add private frontend details if needed_  
 **Live demo:** _TODO_  
-**API docs:** _TODO_
+**API docs:** OpenAPI 3.1 spec at [`docs/openapi/openapi.yaml`](docs/openapi/openapi.yaml) (served path prefix `/api/v1`).
 
 ---
 
@@ -78,7 +78,7 @@ The MVP is intended to allow a tutor to:
 
 **API examples:** _TODO_  
 **Postman collection:** _TODO_  
-**Swagger / OpenAPI documentation:** _TODO_
+**OpenAPI:** [`docs/openapi/openapi.yaml`](docs/openapi/openapi.yaml). Validate with `npm run docs:lint`. Preview in the browser with `npm run docs:preview` (uses [redocly.yaml](redocly.yaml); default port 4000). To emit a static HTML file: `npx redocly build-docs docs/openapi/openapi.yaml -o api-docs.html`. For the frontend, point [openapi-typescript](https://github.com/drwpow/openapi-typescript) or [Orval](https://orval.dev/) at that file (or a hosted copy) to generate types or clients.
 
 ---
 
