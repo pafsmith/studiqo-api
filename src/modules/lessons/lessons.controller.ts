@@ -35,4 +35,17 @@ export const lessonsController = {
       next(error);
     }
   },
+
+  cancelLesson: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const lessonId = req.params.lessonId;
+      if (typeof lessonId !== "string") {
+        throw new TypeError("lessonId must be a string");
+      }
+      const lesson = await lessonsService.cancelLesson(req, lessonId);
+      respondWithJSON(res, 200, lesson);
+    } catch (error) {
+      next(error);
+    }
+  },
 };

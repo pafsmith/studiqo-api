@@ -15,6 +15,7 @@ import { studentsRepository } from "../students/students.repository.js";
 import { lessonsRepository } from "./lessons.repository.js";
 import { toLessonResponse } from "./lessons.mapper.js";
 import type {
+  CancelLessonResponse,
   CreateLessonRequest,
   CreateLessonResponse,
   LessonResponse,
@@ -184,5 +185,44 @@ export const lessonsService = {
     });
 
     return toLessonResponse(lesson);
+  },
+
+  cancelLesson: async (req: Request, lessonId: string): Promise<CancelLessonResponse> => {
+    const actor = requireUser(req);
+
+    if (actor.role === "parent") {
+      throw new UserForbiddenError("Access denied");
+    }
+
+    const lesson = await lessonsRepository.findById(lessonId);
+    if (!lesson) {
+      throw new NotFoundError("Lesson not found");
+    }
+
+    const student = await studentsRepository.findStudentById(lesson.studentId);
+    if (!student) {
+      throw new NotFoundError("Student not found");
+    }
+
+    if (actor.role === "tutor") {
+      if (lesson.tutorId !== actor.id && student.tutorId !== actor.id) {
+        throw new UserForbiddenError("Access denied");
+      }
+    } else if (actor.role !== "admin") {
+      throw new UserForbiddenError("Access denied");
+    }
+    // TODO: Add notification for cancellation
+    if (lesson.status === "cancelled") {
+      return toLessonResponse(lesson);
+    }
+    if (lesson.status === "completed") {
+      throw new BadRequestError("Cannot cancel a completed lesson");
+    }
+
+    const updated = await lessonsRepository.updateStatusById(lessonId, "cancelled");
+    if (!updated) {
+      throw new NotFoundError("Lesson not found");
+    }
+    return toLessonResponse(updated);
   },
 };

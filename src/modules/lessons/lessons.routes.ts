@@ -5,6 +5,7 @@ import {
 } from "../../common/middleware/authenticate.middleware.js";
 import { validate } from "../../common/middleware/validate.middleware.js";
 import {
+  cancelLessonSchema,
   createLessonSchema,
   getLessonSchema,
   listLessonsQuerySchema,
@@ -21,5 +22,10 @@ lessonsRoutes.post(
   requireAdmin,
   validate(createLessonSchema),
   lessonsController.createLesson,
+);
+lessonsRoutes.post(
+  "/:lessonId/cancel",
+  validate(cancelLessonSchema),
+  lessonsController.cancelLesson,
 );
 lessonsRoutes.get("/:lessonId", validate(getLessonSchema), lessonsController.getLesson);
