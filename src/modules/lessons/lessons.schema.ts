@@ -45,3 +45,39 @@ export const createLessonSchema = z.object({
       path: ["endsAt"],
     }),
 });
+
+const updateLessonBodySchema = z
+  .object({
+    tutorId: z.string().uuid().optional(),
+    subjectId: z.string().uuid().optional(),
+    startsAt: z.coerce.date().optional(),
+    endsAt: z.coerce.date().optional(),
+    notes: z.string().min(1).nullable().optional(),
+  })
+  .strict()
+  .refine((body) => Object.keys(body).length > 0, {
+    message: "At least one field must be provided",
+  })
+  .refine(
+    (body) => {
+      if (body.startsAt !== undefined && body.endsAt !== undefined) {
+        return body.endsAt > body.startsAt;
+      }
+      return true;
+    },
+    { message: "endsAt must be after startsAt", path: ["endsAt"] },
+  );
+
+export const updateLessonSchema = z.object({
+  params: z.object({
+    lessonId: z.string().uuid(),
+  }),
+  body: updateLessonBodySchema,
+});
+
+export const completeLessonSchema = z.object({
+  params: z.object({
+    lessonId: z.string().uuid(),
+  }),
+  body: z.object({}).strict().optional().default({}),
+});
