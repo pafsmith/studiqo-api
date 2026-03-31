@@ -219,7 +219,9 @@ export const lessonsService = {
 
       if (body.tutorId !== undefined) {
         if (student.tutorId !== resolvedTutorId) {
-          throw new BadRequestError("Lesson tutor must match the student's assigned tutor");
+          throw new BadRequestError(
+            "Lesson tutor must match the student's assigned tutor",
+          );
         }
         const tutor = await usersRepository.getUserById(resolvedTutorId);
         if (!tutor) {

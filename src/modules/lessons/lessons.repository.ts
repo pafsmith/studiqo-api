@@ -43,7 +43,9 @@ export const lessonsRepository = {
 
   updateLesson: async (
     id: string,
-    patch: Partial<Pick<NewLesson, "tutorId" | "subjectId" | "startsAt" | "endsAt" | "notes">>,
+    patch: Partial<
+      Pick<NewLesson, "tutorId" | "subjectId" | "startsAt" | "endsAt" | "notes">
+    >,
   ): Promise<Lesson | undefined> => {
     const [row] = await db
       .update(lessons)
