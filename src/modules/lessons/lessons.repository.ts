@@ -41,6 +41,18 @@ export const lessonsRepository = {
     return row;
   },
 
+  updateLesson: async (
+    id: string,
+    patch: Partial<Pick<NewLesson, "tutorId" | "subjectId" | "startsAt" | "endsAt" | "notes">>,
+  ): Promise<Lesson | undefined> => {
+    const [row] = await db
+      .update(lessons)
+      .set(patch)
+      .where(eq(lessons.id, id))
+      .returning();
+    return row;
+  },
+
   findInRangeOverlapping: async (
     params: FindLessonsInRangeParams,
   ): Promise<Lesson[]> => {
