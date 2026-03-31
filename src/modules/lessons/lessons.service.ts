@@ -16,10 +16,13 @@ import { lessonsRepository } from "./lessons.repository.js";
 import { toLessonResponse } from "./lessons.mapper.js";
 import type {
   CancelLessonResponse,
+  CompleteLessonResponse,
   CreateLessonRequest,
   CreateLessonResponse,
   LessonResponse,
   ListLessonsQuery,
+  UpdateLessonRequest,
+  UpdateLessonResponse,
 } from "./lessons.types.js";
 
 function asBoundaryDate(value: unknown, label: string): Date {
@@ -185,6 +188,118 @@ export const lessonsService = {
     });
 
     return toLessonResponse(lesson);
+  },
+
+  updateLesson: async (
+    req: Request,
+    lessonId: string,
+    body: UpdateLessonRequest,
+  ): Promise<UpdateLessonResponse> => {
+    requireAdminUser(req);
+
+    const lesson = await lessonsRepository.findById(lessonId);
+    if (!lesson) {
+      throw new NotFoundError("Lesson not found");
+    }
+
+    if (lesson.status !== "scheduled") {
+      throw new BadRequestError("Only scheduled lessons can be updated");
+    }
+
+    const patch: Partial<UpdateLessonRequest> = {};
+
+    const resolvedTutorId = body.tutorId ?? lesson.tutorId;
+    const resolvedSubjectId = body.subjectId ?? lesson.subjectId;
+
+    if (body.tutorId !== undefined || body.subjectId !== undefined) {
+      const student = await studentsRepository.findStudentById(lesson.studentId);
+      if (!student) {
+        throw new NotFoundError("Student not found");
+      }
+
+      if (body.tutorId !== undefined) {
+        if (student.tutorId !== resolvedTutorId) {
+          throw new BadRequestError(
+            "Lesson tutor must match the student's assigned tutor",
+          );
+        }
+        const tutor = await usersRepository.getUserById(resolvedTutorId);
+        if (!tutor) {
+          throw new NotFoundError("Tutor not found");
+        }
+        if (tutor.role !== "tutor") {
+          throw new BadRequestError("Only tutors can be assigned to lessons");
+        }
+        patch.tutorId = body.tutorId;
+      }
+
+      if (body.subjectId !== undefined) {
+        const subject = await subjectsRepository.findSubjectById(resolvedSubjectId);
+        if (!subject) {
+          throw new NotFoundError("Subject not found");
+        }
+        const enrollment = await studentSubjectsRepository.findByStudentAndSubject(
+          lesson.studentId,
+          resolvedSubjectId,
+        );
+        if (!enrollment) {
+          throw new BadRequestError("Student is not enrolled in this subject");
+        }
+        patch.subjectId = body.subjectId;
+      }
+    }
+
+    if (body.startsAt !== undefined) patch.startsAt = body.startsAt;
+    if (body.endsAt !== undefined) patch.endsAt = body.endsAt;
+    if (body.notes !== undefined) patch.notes = body.notes;
+
+    const updated = await lessonsRepository.updateLesson(lessonId, patch);
+    if (!updated) {
+      throw new NotFoundError("Lesson not found");
+    }
+    return toLessonResponse(updated);
+  },
+
+  completeLesson: async (
+    req: Request,
+    lessonId: string,
+  ): Promise<CompleteLessonResponse> => {
+    const actor = requireUser(req);
+
+    if (actor.role === "parent") {
+      throw new UserForbiddenError("Access denied");
+    }
+
+    const lesson = await lessonsRepository.findById(lessonId);
+    if (!lesson) {
+      throw new NotFoundError("Lesson not found");
+    }
+
+    const student = await studentsRepository.findStudentById(lesson.studentId);
+    if (!student) {
+      throw new NotFoundError("Student not found");
+    }
+
+    if (actor.role === "tutor") {
+      if (lesson.tutorId !== actor.id && student.tutorId !== actor.id) {
+        throw new UserForbiddenError("Access denied");
+      }
+    } else if (actor.role !== "admin") {
+      throw new UserForbiddenError("Access denied");
+    }
+
+    if (lesson.status === "completed") {
+      return toLessonResponse(lesson);
+    }
+    if (lesson.status === "cancelled") {
+      throw new BadRequestError("Cannot complete a cancelled lesson");
+    }
+
+    const updated = await lessonsRepository.updateStatusById(lessonId, "completed");
+    if (!updated) {
+      throw new NotFoundError("Lesson not found");
+    }
+    return toLessonResponse(updated);
   },
 
   cancelLesson: async (
