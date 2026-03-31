@@ -610,3 +610,322 @@ describe("POST /api/v1/lessons/:lessonId/cancel", () => {
       .expect(400);
   });
 });
+
+describe("PUT /api/v1/lessons/:lessonId", () => {
+  const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const adminEmail = `lessons-update-admin-${runId}@example.com`;
+  const parentEmail = `lessons-update-parent-${runId}@example.com`;
+  const tutorEmail = `lessons-update-tutor-${runId}@example.com`;
+  let adminId: string | null = null;
+  let parentId: string | null = null;
+  let tutorId: string | null = null;
+  let studentId: string | null = null;
+  let subjectId: string | null = null;
+
+  afterEach(async () => {
+    if (studentId) {
+      await db.delete(students).where(eq(students.id, studentId));
+      studentId = null;
+    }
+    if (subjectId) {
+      await db.delete(subjects).where(eq(subjects.id, subjectId));
+      subjectId = null;
+    }
+    if (tutorId) {
+      await db.delete(users).where(eq(users.id, tutorId));
+      tutorId = null;
+    }
+    if (parentId) {
+      await db.delete(users).where(eq(users.id, parentId));
+      parentId = null;
+    }
+    if (adminId) {
+      await db.delete(users).where(eq(users.id, adminId));
+      adminId = null;
+    }
+  });
+
+  async function seedWithLesson() {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+
+    const tutor = await insertUserWithRole(tutorEmail, "tutor");
+    tutorId = tutor.id;
+
+    const studentRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: parent.id,
+        tutorId: tutor.id,
+        firstName: "Update",
+        lastName: "Pupil",
+        dateOfBirth: "2012-03-15T12:00:00.000Z",
+      })
+      .expect(201);
+    const sid = studentRes.body.id as string;
+    studentId = sid;
+
+    const subRes = await request(app)
+      .post(paths.subjects)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ name: `UpdateSubject-${runId}` })
+      .expect(201);
+    const subjId = subRes.body.id as string;
+    subjectId = subjId;
+
+    await request(app)
+      .post(paths.studentSubjects(sid))
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ subjectId: subjId })
+      .expect(201);
+
+    const lessonRes = await request(app)
+      .post(paths.lessons)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        studentId: sid,
+        tutorId: tutor.id,
+        subjectId: subjId,
+        startsAt: "2026-04-01T14:00:00.000Z",
+        endsAt: "2026-04-01T15:00:00.000Z",
+      })
+      .expect(201);
+
+    return {
+      adminSession,
+      parentSession: await loginUser(parentEmail),
+      tutorSession: await loginUser(tutorEmail),
+      lessonId: lessonRes.body.id as string,
+      subjId,
+    };
+  }
+
+  it("returns 401 without auth", async () => {
+    await request(app)
+      .put(paths.lesson("00000000-0000-4000-8000-000000000001"))
+      .send({ notes: "test" })
+      .expect(401);
+  });
+
+  it("returns 403 for non-admin", async () => {
+    const { parentSession, tutorSession, lessonId } = await seedWithLesson();
+
+    for (const session of [parentSession, tutorSession]) {
+      await request(app)
+        .put(paths.lesson(lessonId))
+        .set("Authorization", `Bearer ${session.token}`)
+        .send({ notes: "test" })
+        .expect(403);
+    }
+  });
+
+  it("returns 400 when body is empty", async () => {
+    const { adminSession, lessonId } = await seedWithLesson();
+
+    await request(app)
+      .put(paths.lesson(lessonId))
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({})
+      .expect(400);
+  });
+
+  it("admin updates notes and schedule; response reflects changes", async () => {
+    const { adminSession, lessonId } = await seedWithLesson();
+
+    const res = await request(app)
+      .put(paths.lesson(lessonId))
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        notes: "Revised session",
+        startsAt: "2026-04-01T16:00:00.000Z",
+        endsAt: "2026-04-01T17:00:00.000Z",
+      })
+      .expect(200);
+
+    expect(res.body.notes).toBe("Revised session");
+    expect(res.body.startsAt).toBe("2026-04-01T16:00:00.000Z");
+    expect(res.body.endsAt).toBe("2026-04-01T17:00:00.000Z");
+    expect(res.body.status).toBe("scheduled");
+  });
+
+  it("returns 400 when endsAt is before startsAt", async () => {
+    const { adminSession, lessonId } = await seedWithLesson();
+
+    await request(app)
+      .put(paths.lesson(lessonId))
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        startsAt: "2026-04-01T17:00:00.000Z",
+        endsAt: "2026-04-01T16:00:00.000Z",
+      })
+      .expect(400);
+  });
+
+  it("returns 400 when lesson is not scheduled", async () => {
+    const { adminSession, lessonId } = await seedWithLesson();
+
+    await db
+      .update(lessons)
+      .set({ status: "cancelled" })
+      .where(eq(lessons.id, lessonId));
+
+    await request(app)
+      .put(paths.lesson(lessonId))
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ notes: "too late" })
+      .expect(400);
+  });
+});
+
+describe("POST /api/v1/lessons/:lessonId/complete", () => {
+  const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const adminEmail = `lessons-complete-admin-${runId}@example.com`;
+  const parentEmail = `lessons-complete-parent-${runId}@example.com`;
+  const tutorEmail = `lessons-complete-tutor-${runId}@example.com`;
+  let adminId: string | null = null;
+  let parentId: string | null = null;
+  let tutorId: string | null = null;
+  let studentId: string | null = null;
+  let subjectId: string | null = null;
+
+  afterEach(async () => {
+    if (studentId) {
+      await db.delete(students).where(eq(students.id, studentId));
+      studentId = null;
+    }
+    if (subjectId) {
+      await db.delete(subjects).where(eq(subjects.id, subjectId));
+      subjectId = null;
+    }
+    if (tutorId) {
+      await db.delete(users).where(eq(users.id, tutorId));
+      tutorId = null;
+    }
+    if (parentId) {
+      await db.delete(users).where(eq(users.id, parentId));
+      parentId = null;
+    }
+    if (adminId) {
+      await db.delete(users).where(eq(users.id, adminId));
+      adminId = null;
+    }
+  });
+
+  async function seedWithLesson() {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const adminSession = await loginUser(adminEmail);
+
+    const parent = await insertUserWithRole(parentEmail, "parent");
+    parentId = parent.id;
+
+    const tutor = await insertUserWithRole(tutorEmail, "tutor");
+    tutorId = tutor.id;
+
+    const studentRes = await request(app)
+      .post(paths.students)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        parentId: parent.id,
+        tutorId: tutor.id,
+        firstName: "Complete",
+        lastName: "Pupil",
+        dateOfBirth: "2012-03-15T12:00:00.000Z",
+      })
+      .expect(201);
+    const sid = studentRes.body.id as string;
+    studentId = sid;
+
+    const subRes = await request(app)
+      .post(paths.subjects)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ name: `CompleteSubject-${runId}` })
+      .expect(201);
+    const subjId = subRes.body.id as string;
+    subjectId = subjId;
+
+    await request(app)
+      .post(paths.studentSubjects(sid))
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ subjectId: subjId })
+      .expect(201);
+
+    const lessonRes = await request(app)
+      .post(paths.lessons)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({
+        studentId: sid,
+        tutorId: tutor.id,
+        subjectId: subjId,
+        startsAt: "2026-04-01T14:00:00.000Z",
+        endsAt: "2026-04-01T15:00:00.000Z",
+      })
+      .expect(201);
+
+    return {
+      adminSession,
+      parentSession: await loginUser(parentEmail),
+      tutorSession: await loginUser(tutorEmail),
+      lessonId: lessonRes.body.id as string,
+    };
+  }
+
+  it("parent and unrelated tutor forbidden; assigned tutor completes; second complete is idempotent", async () => {
+    const { parentSession, tutorSession, lessonId } = await seedWithLesson();
+
+    await request(app)
+      .post(paths.lessonComplete(lessonId))
+      .set("Authorization", `Bearer ${parentSession.token}`)
+      .send({})
+      .expect(403);
+
+    const otherTutor = await insertUserWithRole(
+      `other-tutor-complete-${runId}@example.com`,
+      "tutor",
+    );
+    const otherSession = await loginUser(`other-tutor-complete-${runId}@example.com`);
+
+    await request(app)
+      .post(paths.lessonComplete(lessonId))
+      .set("Authorization", `Bearer ${otherSession.token}`)
+      .send({})
+      .expect(403);
+
+    await db.delete(users).where(eq(users.id, otherTutor.id));
+
+    const first = await request(app)
+      .post(paths.lessonComplete(lessonId))
+      .set("Authorization", `Bearer ${tutorSession.token}`)
+      .send({})
+      .expect(200);
+    expect(first.body.status).toBe("completed");
+
+    const again = await request(app)
+      .post(paths.lessonComplete(lessonId))
+      .set("Authorization", `Bearer ${tutorSession.token}`)
+      .send({})
+      .expect(200);
+    expect(again.body.status).toBe("completed");
+    expect(again.body.id).toBe(lessonId);
+  });
+
+  it("returns 400 when lesson is cancelled", async () => {
+    const { adminSession, lessonId } = await seedWithLesson();
+
+    await db
+      .update(lessons)
+      .set({ status: "cancelled" })
+      .where(eq(lessons.id, lessonId));
+
+    await request(app)
+      .post(paths.lessonComplete(lessonId))
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({})
+      .expect(400);
+  });
+});
