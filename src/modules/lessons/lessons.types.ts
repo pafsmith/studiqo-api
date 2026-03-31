@@ -31,3 +31,15 @@ export type LessonResponse = {
 export type CreateLessonResponse = LessonResponse;
 
 export type CancelLessonResponse = LessonResponse;
+
+export type UpdateLessonRequest = {
+  tutorId?: string;
+  subjectId?: string;
+  startsAt?: Date;
+  endsAt?: Date;
+  notes?: string | null;
+};
+
+export type UpdateLessonResponse = LessonResponse;
+
+export type CompleteLessonResponse = LessonResponse;
