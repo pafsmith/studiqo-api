@@ -3,6 +3,7 @@ import request from "supertest";
 import jwt from "jsonwebtoken";
 import { eq } from "drizzle-orm";
 import { app } from "../../src/app.js";
+import { config } from "../../src/config/config.js";
 import { db } from "../../src/db/index.js";
 import { users } from "../../src/db/schema.js";
 import { loginUser, paths, registerUser, validPassword } from "./helpers.js";
@@ -88,6 +89,10 @@ describe("POST /api/v1/auth/login", () => {
     expect(res.body).toMatchObject({ email, id: reg.id, role: "org_admin" });
     expect(typeof res.body.token).toBe("string");
     expect(typeof res.body.refreshToken).toBe("string");
+    expect(res.headers["set-cookie"]).toBeDefined();
+    expect(res.headers["set-cookie"]?.[0]).toContain(
+      `${config.auth.refreshCookieName}=`,
+    );
   });
 
   it("returns 400 for unknown email", async () => {
@@ -188,7 +193,35 @@ describe("POST /api/v1/auth/refresh", () => {
     expect(res.body.error).toMatch(/not found/i);
   });
 
-  it("returns 200 with a new access token for a valid refresh token", async () => {
+  it("returns 200 with a new access token using cookie auth", async () => {
+    const agent = request.agent(app);
+    await agent
+      .post(paths.register)
+      .send({ email, password: validPassword })
+      .expect(201);
+    const login = await agent
+      .post(paths.login)
+      .send({ email, password: validPassword })
+      .expect(200);
+    userId = login.body.id;
+
+    const res = await agent
+      .post(paths.refresh)
+      .expect(200)
+      .expect("Content-Type", /json/);
+
+    expect(typeof res.body.token).toBe("string");
+    expect(res.body.refreshToken).toBeUndefined();
+    const payload = jwt.decode(res.body.token) as { sub?: string; iss?: string };
+    expect(payload.sub).toBe(userId);
+    expect(payload.iss).toBe("studiqo");
+    expect(res.headers["set-cookie"]).toBeDefined();
+    expect(res.headers["set-cookie"]?.[0]).toContain(
+      `${config.auth.refreshCookieName}=`,
+    );
+  });
+
+  it("returns 200 with rotated tokens for legacy Authorization header flow", async () => {
     await registerUser(email);
     const session = await loginUser(email);
     userId = session.id;
@@ -200,6 +233,7 @@ describe("POST /api/v1/auth/refresh", () => {
       .expect("Content-Type", /json/);
 
     expect(typeof res.body.token).toBe("string");
+    expect(typeof res.body.refreshToken).toBe("string");
     const payload = jwt.decode(res.body.token) as { sub?: string; iss?: string };
     expect(payload.sub).toBe(session.id);
     expect(payload.iss).toBe("studiqo");
@@ -239,5 +273,26 @@ describe("POST /api/v1/auth/logout", () => {
       .expect(404);
 
     expect(afterLogout.body.error).toMatch(/not found/i);
+  });
+
+  it("returns 204 and clears refresh cookie", async () => {
+    const agent = request.agent(app);
+    const runScopedEmail = `logout-cookie-${runId}@example.com`;
+    const register = await agent
+      .post(paths.register)
+      .send({ email: runScopedEmail, password: validPassword })
+      .expect(201);
+    userId = register.body.id;
+
+    await agent
+      .post(paths.login)
+      .send({ email: runScopedEmail, password: validPassword })
+      .expect(200);
+
+    const logout = await agent.post(paths.logout).expect(204);
+    expect(logout.headers["set-cookie"]).toBeDefined();
+
+    const afterLogout = await agent.post(paths.refresh).expect(401);
+    expect(afterLogout.body.error).toBeDefined();
   });
 });

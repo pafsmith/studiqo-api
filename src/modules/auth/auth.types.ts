@@ -32,4 +32,7 @@ export interface LoginUserResponse {
 
 export interface RefreshTokenResponse {
   token: string;
+  refreshToken?: string;
 }
+
+export type RefreshTokenSource = "cookie" | "header";

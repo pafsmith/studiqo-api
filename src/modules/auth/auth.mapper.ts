@@ -23,8 +23,12 @@ export function toLoginUserResponse(
   };
 }
 
-export function toRefreshTokenResponse(token: string): RefreshTokenResponse {
+export function toRefreshTokenResponse(
+  token: string,
+  refreshToken?: string,
+): RefreshTokenResponse {
   return {
     token: token,
+    refreshToken: refreshToken,
   };
 }

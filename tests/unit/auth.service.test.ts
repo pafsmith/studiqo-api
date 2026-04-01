@@ -133,7 +133,7 @@ describe("authService registerUser", () => {
   });
 
   it("creates user with trimmed lowercase lookup email", async () => {
-    vi.mocked(usersRepository.getUserByEmail).mockResolvedValue(undefined);
+    vi.mocked(usersRepository.getUserByEmail).mockResolvedValue(undefined as never);
     const createdAt = new Date();
     vi.mocked(usersRepository.createUser).mockResolvedValue({
       id: "new-id",
@@ -189,7 +189,7 @@ describe("authService loginUser", () => {
   });
 
   it("rejects unknown user", async () => {
-    vi.mocked(usersRepository.getUserByEmail).mockResolvedValue(undefined);
+    vi.mocked(usersRepository.getUserByEmail).mockResolvedValue(undefined as never);
 
     await expect(
       authService.loginUser({ email: "nope@example.com", password: "x" }),
@@ -277,5 +277,101 @@ describe("authService getMe", () => {
       isSuperadmin: false,
       activeOrganizationId: undefined,
     });
+  });
+});
+
+describe("authService resolveRefreshToken", () => {
+  it("prefers cookie refresh token when present", () => {
+    const req = {
+      cookies: { [config.auth.refreshCookieName]: "cookie-refresh" },
+      headers: { authorization: "Bearer header-refresh" },
+    } as unknown as Request;
+
+    expect(authService.resolveRefreshToken(req)).toEqual({
+      token: "cookie-refresh",
+      source: "cookie",
+    });
+  });
+
+  it("falls back to Authorization header for legacy clients", () => {
+    const req = {
+      cookies: {},
+      headers: { authorization: "Bearer header-refresh" },
+    } as unknown as Request;
+
+    expect(authService.resolveRefreshToken(req)).toEqual({
+      token: "header-refresh",
+      source: "header",
+    });
+  });
+});
+
+describe("authService refresh/logout", () => {
+  beforeEach(() => {
+    vi.mocked(authRepository.getUserfromRefreshToken).mockReset();
+    vi.mocked(authRepository.revokeRefreshToken).mockReset();
+    vi.mocked(authRepository.createRefreshToken).mockReset();
+    vi.mocked(organizationsRepository.listMembershipsForUser).mockReset();
+  });
+
+  it("rotates refresh token and returns both tokens", async () => {
+    const now = new Date();
+    vi.mocked(authRepository.getUserfromRefreshToken).mockResolvedValue({
+      user: {
+        id: "u-1",
+        email: "rotate@example.com",
+        hasedPassword: "hash",
+        isSuperadmin: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    vi.mocked(authRepository.revokeRefreshToken).mockResolvedValue(undefined);
+    vi.mocked(authRepository.createRefreshToken).mockResolvedValue({
+      token: "new-refresh",
+      userId: "u-1",
+      createdAt: now,
+      updatedAt: now,
+      expiresAt: new Date(Date.now() + 3600_000),
+      revokedAt: null,
+    });
+    vi.mocked(organizationsRepository.listMembershipsForUser).mockResolvedValue([
+      {
+        organizationId: "org-1",
+        userId: "u-1",
+        role: "org_admin",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    const req = {
+      cookies: { [config.auth.refreshCookieName]: "old-refresh" },
+      headers: {},
+    } as unknown as Request;
+
+    const out = await authService.refreshToken(req);
+
+    expect(authRepository.getUserfromRefreshToken).toHaveBeenCalledWith("old-refresh");
+    expect(authRepository.revokeRefreshToken).toHaveBeenCalledWith("old-refresh");
+    expect(authRepository.createRefreshToken).toHaveBeenCalledTimes(1);
+    expect(typeof out.token).toBe("string");
+    expect(typeof out.refreshToken).toBe("string");
+    expect(authService.validateJWT(out.token, config.jwt.secret)).toEqual({
+      userId: "u-1",
+      organizationId: "org-1",
+    });
+  });
+
+  it("revokes refresh token from cookie on logout", async () => {
+    vi.mocked(authRepository.revokeRefreshToken).mockResolvedValue(undefined);
+    const req = {
+      cookies: { [config.auth.refreshCookieName]: "logout-token" },
+      headers: {},
+    } as unknown as Request;
+
+    await authService.logoutUser(req);
+
+    expect(authRepository.revokeRefreshToken).toHaveBeenCalledWith("logout-token");
   });
 });
