@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { NewStudent, Student, students } from "../../db/schema.js";
 
@@ -8,13 +8,20 @@ export const studentsRepository = {
     return result;
   },
 
-  findStudentById: async (id: string): Promise<Student | undefined> => {
-    const [row] = await db.select().from(students).where(eq(students.id, id));
+  findStudentById: async (
+    id: string,
+    organizationId: string,
+  ): Promise<Student | undefined> => {
+    const [row] = await db
+      .select()
+      .from(students)
+      .where(and(eq(students.id, id), eq(students.organizationId, organizationId)));
     return row;
   },
 
   updateStudent: async (
     id: string,
+    organizationId: string,
     patch: Partial<
       Pick<
         NewStudent,
@@ -25,27 +32,41 @@ export const studentsRepository = {
     const [row] = await db
       .update(students)
       .set(patch)
-      .where(eq(students.id, id))
+      .where(and(eq(students.id, id), eq(students.organizationId, organizationId)))
       .returning();
     return row;
   },
 
-  findAllStudents: async (): Promise<Student[]> => {
-    return db.select().from(students);
+  findAllStudents: async (organizationId: string): Promise<Student[]> => {
+    return db
+      .select()
+      .from(students)
+      .where(eq(students.organizationId, organizationId));
   },
 
-  findStudentsByParentId: async (parentId: string): Promise<Student[]> => {
-    return db.select().from(students).where(eq(students.parentId, parentId));
+  findStudentsByParentId: async (
+    parentId: string,
+    organizationId: string,
+  ): Promise<Student[]> => {
+    return db
+      .select()
+      .from(students)
+      .where(
+        and(eq(students.parentId, parentId), eq(students.organizationId, organizationId)),
+      );
   },
 
-  findStudentByTutorId: async (tutorId: string): Promise<Student[]> => {
-    return db.select().from(students).where(eq(students.tutorId, tutorId));
+  findStudentByTutorId: async (tutorId: string, organizationId: string): Promise<Student[]> => {
+    return db
+      .select()
+      .from(students)
+      .where(and(eq(students.tutorId, tutorId), eq(students.organizationId, organizationId)));
   },
 
-  deleteStudentById: async (id: string): Promise<boolean> => {
+  deleteStudentById: async (id: string, organizationId: string): Promise<boolean> => {
     const deleted = await db
       .delete(students)
-      .where(eq(students.id, id))
+      .where(and(eq(students.id, id), eq(students.organizationId, organizationId)))
       .returning({ id: students.id });
     return deleted.length > 0;
   },

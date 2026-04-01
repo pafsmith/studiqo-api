@@ -1,6 +1,7 @@
 import { Request } from "express";
 import {
   requireAdminUser,
+  requireOrganizationContext,
   requireUser,
 } from "../../common/middleware/authenticate.middleware.js";
 import {
@@ -46,41 +47,43 @@ const MAX_EMERGENCY_CONTACTS = 2;
 export const studentsService = {
   listStudents: async (req: Request): Promise<StudentResponse[]> => {
     const actor = requireUser(req);
-    if (actor.role === "admin") {
-      const rows = await studentsRepository.findAllStudents();
+    const { organizationId, organizationRole } = requireOrganizationContext(req);
+    if (actor.isSuperadmin || organizationRole === "org_admin") {
+      const rows = await studentsRepository.findAllStudents(organizationId);
       return rows.map(toStudentResponse);
     }
-    if (actor.role === "parent") {
-      const rows = await studentsRepository.findStudentsByParentId(actor.id);
+    if (organizationRole === "parent") {
+      const rows = await studentsRepository.findStudentsByParentId(actor.id, organizationId);
       return rows.map(toStudentResponse);
     }
-    if (actor.role === "tutor") {
-      const rows = await studentsRepository.findStudentByTutorId(actor.id);
+    if (organizationRole === "tutor") {
+      const rows = await studentsRepository.findStudentByTutorId(actor.id, organizationId);
       return rows.map(toStudentResponse);
     }
-    throw new UserForbiddenError("Only admins and parents can list students");
+    throw new UserForbiddenError("Access denied");
   },
 
   getStudent: async (req: Request, studentId: string): Promise<StudentResponse> => {
     const actor = requireUser(req);
-    const student = await studentsRepository.findStudentById(studentId);
+    const { organizationId, organizationRole } = requireOrganizationContext(req);
+    const student = await studentsRepository.findStudentById(studentId, organizationId);
 
     if (!student) {
       throw new NotFoundError("Student not found");
     }
 
-    if (actor.role === "admin") {
+    if (actor.isSuperadmin || organizationRole === "org_admin") {
       return toStudentResponse(student);
     }
 
-    if (actor.role === "parent") {
+    if (organizationRole === "parent") {
       if (student.parentId !== actor.id) {
         throw new UserForbiddenError("Access denied");
       }
       return toStudentResponse(student);
     }
 
-    if (actor.role === "tutor") {
+    if (organizationRole === "tutor") {
       if (student.tutorId !== actor.id) {
         throw new UserForbiddenError("Access denied");
       }
@@ -94,15 +97,34 @@ export const studentsService = {
     req: Request,
     student: CreateStudentRequest,
   ): Promise<CreateStudentResponse> => {
-    requireUser(req);
+    requireAdminUser(req);
+    const { organizationId } = requireOrganizationContext(req);
     const parent = await usersRepository.getUserById(student.parentId);
     if (!parent) {
       throw new NotFoundError("Parent not found");
     }
-    if (parent.role !== "parent") {
-      throw new UserForbiddenError("Only parents can be linked to students");
+    const parentInOrganization = await usersRepository.hasOrganizationMembership(
+      parent.id,
+      organizationId,
+      "parent",
+    );
+    if (!parentInOrganization) {
+      throw new UserForbiddenError("Parent must belong to the active organization");
     }
-    const newStudent = await studentsRepository.createStudent(student);
+    if (student.tutorId !== undefined) {
+      const tutorInOrganization = await usersRepository.hasOrganizationMembership(
+        student.tutorId,
+        organizationId,
+        "tutor",
+      );
+      if (!tutorInOrganization) {
+        throw new UserForbiddenError("Tutor must belong to the active organization");
+      }
+    }
+    const newStudent = await studentsRepository.createStudent({
+      ...student,
+      organizationId,
+    });
     return toStudentResponse(newStudent);
   },
 
@@ -111,9 +133,10 @@ export const studentsService = {
     studentId: string,
     body: UpdateStudentRequest,
   ): Promise<UpdateStudentResponse> => {
-    requireUser(req);
+    requireAdminUser(req);
+    const { organizationId } = requireOrganizationContext(req);
 
-    const existing = await studentsRepository.findStudentById(studentId);
+    const existing = await studentsRepository.findStudentById(studentId, organizationId);
     if (!existing) {
       throw new NotFoundError("Student not found");
     }
@@ -123,8 +146,13 @@ export const studentsService = {
       if (!parent) {
         throw new NotFoundError("Parent not found");
       }
-      if (parent.role !== "parent") {
-        throw new UserForbiddenError("Only parents can be linked to students");
+      const parentInOrganization = await usersRepository.hasOrganizationMembership(
+        parent.id,
+        organizationId,
+        "parent",
+      );
+      if (!parentInOrganization) {
+        throw new UserForbiddenError("Parent must belong to the active organization");
       }
     }
 
@@ -133,12 +161,17 @@ export const studentsService = {
       if (!tutor) {
         throw new NotFoundError("Tutor not found");
       }
-      if (tutor.role !== "tutor") {
-        throw new UserForbiddenError("Only tutors can be linked to students");
+      const tutorInOrganization = await usersRepository.hasOrganizationMembership(
+        tutor.id,
+        organizationId,
+        "tutor",
+      );
+      if (!tutorInOrganization) {
+        throw new UserForbiddenError("Tutor must belong to the active organization");
       }
     }
 
-    const updated = await studentsRepository.updateStudent(studentId, body);
+    const updated = await studentsRepository.updateStudent(studentId, organizationId, body);
     if (!updated) {
       throw new NotFoundError("Student not found");
     }
@@ -147,9 +180,10 @@ export const studentsService = {
   },
 
   deleteStudent: async (req: Request, studentId: string): Promise<void> => {
-    requireUser(req);
+    requireAdminUser(req);
+    const { organizationId } = requireOrganizationContext(req);
 
-    const deleted = await studentsRepository.deleteStudentById(studentId);
+    const deleted = await studentsRepository.deleteStudentById(studentId, organizationId);
     if (!deleted) {
       throw new NotFoundError("Student not found");
     }
@@ -160,14 +194,18 @@ export const studentsService = {
     studentId: string,
     body: LinkStudentSubjectRequest,
   ): Promise<StudentSubjectLinkResponse> => {
-    requireUser(req);
+    requireAdminUser(req);
+    const { organizationId } = requireOrganizationContext(req);
 
-    const student = await studentsRepository.findStudentById(studentId);
+    const student = await studentsRepository.findStudentById(studentId, organizationId);
     if (!student) {
       throw new NotFoundError("Student not found");
     }
 
-    const subject = await subjectsRepository.findSubjectById(body.subjectId);
+    const subject = await subjectsRepository.findSubjectByIdForOrganization(
+      body.subjectId,
+      organizationId,
+    );
     if (!subject) {
       throw new NotFoundError("Subject not found");
     }
@@ -195,19 +233,20 @@ export const studentsService = {
     studentId: string,
   ): Promise<StudentSubjectResponse[]> => {
     const actor = requireUser(req);
-    const student = await studentsRepository.findStudentById(studentId);
+    const { organizationId, organizationRole } = requireOrganizationContext(req);
+    const student = await studentsRepository.findStudentById(studentId, organizationId);
 
     if (!student) {
       throw new NotFoundError("Student not found");
     }
 
-    if (actor.role === "admin") {
+    if (actor.isSuperadmin || organizationRole === "org_admin") {
       const subjects =
         await studentSubjectsRepository.findSubjectsByStudentId(studentId);
       return subjects.map(toStudentSubjectResponse);
     }
 
-    if (actor.role === "parent") {
+    if (organizationRole === "parent") {
       if (student.parentId !== actor.id) {
         throw new UserForbiddenError("Access denied");
       }
@@ -216,7 +255,7 @@ export const studentsService = {
       return subjects.map(toStudentSubjectResponse);
     }
 
-    if (actor.role === "tutor") {
+    if (organizationRole === "tutor") {
       if (student.tutorId !== actor.id) {
         throw new UserForbiddenError("Access denied");
       }
@@ -233,18 +272,19 @@ export const studentsService = {
     studentId: string,
   ): Promise<EmergencyContactResponse[]> => {
     const actor = requireUser(req);
-    const student = await studentsRepository.findStudentById(studentId);
+    const { organizationId, organizationRole } = requireOrganizationContext(req);
+    const student = await studentsRepository.findStudentById(studentId, organizationId);
 
     if (!student) {
       throw new NotFoundError("Student not found");
     }
 
-    if (actor.role === "admin") {
+    if (actor.isSuperadmin || organizationRole === "org_admin") {
       const contacts = await emergencyContactsRepository.findByStudentId(studentId);
       return contacts.map(toEmergencyContactResponse);
     }
 
-    if (actor.role === "parent") {
+    if (organizationRole === "parent") {
       if (student.parentId !== actor.id) {
         throw new UserForbiddenError("Access denied");
       }
@@ -252,7 +292,7 @@ export const studentsService = {
       return contacts.map(toEmergencyContactResponse);
     }
 
-    if (actor.role === "tutor") {
+    if (organizationRole === "tutor") {
       if (student.tutorId !== actor.id) {
         throw new UserForbiddenError("Access denied");
       }
@@ -269,8 +309,9 @@ export const studentsService = {
     body: CreateEmergencyContactRequest,
   ): Promise<EmergencyContactResponse> => {
     requireAdminUser(req);
+    const { organizationId } = requireOrganizationContext(req);
 
-    const student = await studentsRepository.findStudentById(studentId);
+    const student = await studentsRepository.findStudentById(studentId, organizationId);
     if (!student) {
       throw new NotFoundError("Student not found");
     }
@@ -299,8 +340,9 @@ export const studentsService = {
     body: UpdateEmergencyContactRequest,
   ): Promise<EmergencyContactResponse> => {
     requireAdminUser(req);
+    const { organizationId } = requireOrganizationContext(req);
 
-    const student = await studentsRepository.findStudentById(studentId);
+    const student = await studentsRepository.findStudentById(studentId, organizationId);
     if (!student) {
       throw new NotFoundError("Student not found");
     }
@@ -324,8 +366,9 @@ export const studentsService = {
     contactId: string,
   ): Promise<void> => {
     requireAdminUser(req);
+    const { organizationId } = requireOrganizationContext(req);
 
-    const student = await studentsRepository.findStudentById(studentId);
+    const student = await studentsRepository.findStudentById(studentId, organizationId);
     if (!student) {
       throw new NotFoundError("Student not found");
     }

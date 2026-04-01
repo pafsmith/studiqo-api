@@ -19,6 +19,7 @@ export type LessonResponse = {
   id: string;
   createdAt: Date;
   updatedAt: Date;
+  organizationId: string;
   studentId: string;
   tutorId: string;
   subjectId: string;

@@ -10,6 +10,7 @@ import type { StudentSubjectWithDetails } from "./student-subjects.repository.js
 export function toStudentResponse(student: Student): StudentResponse {
   return {
     id: student.id,
+    ...(student.organizationId ? { organizationId: student.organizationId } : {}),
     parentId: student.parentId,
     tutorId: student.tutorId,
     firstName: student.firstName,
