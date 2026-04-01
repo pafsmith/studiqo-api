@@ -1,6 +1,7 @@
 import { Request } from "express";
 import {
   requireAdminUser,
+  requireOrganizationContext,
   requireUser,
 } from "../../common/middleware/authenticate.middleware.js";
 import {
@@ -42,12 +43,14 @@ export const lessonsService = {
     query: ListLessonsQuery,
   ): Promise<LessonResponse[]> => {
     const actor = requireUser(req);
+    const { organizationId, organizationRole } = requireOrganizationContext(req);
     const from = asBoundaryDate(query.from, "from");
     const to = asBoundaryDate(query.to, "to");
     const { studentId, tutorId } = query;
 
-    if (actor.role === "admin") {
+    if (actor.isSuperadmin || organizationRole === "org_admin") {
       const rows = await lessonsRepository.findInRangeOverlapping({
+        organizationId,
         from,
         to,
         studentId,
@@ -56,22 +59,30 @@ export const lessonsService = {
       return rows.map(toLessonResponse);
     }
 
-    if (actor.role === "parent") {
+    if (organizationRole === "parent") {
       if (studentId !== undefined) {
-        const student = await studentsRepository.findStudentById(studentId);
+        const student = await studentsRepository.findStudentById(
+          studentId,
+          organizationId,
+        );
         if (!student || student.parentId !== actor.id) {
           throw new UserForbiddenError("Access denied");
         }
         const rows = await lessonsRepository.findInRangeOverlapping({
+          organizationId,
           from,
           to,
           studentId,
         });
         return rows.map(toLessonResponse);
       }
-      const kids = await studentsRepository.findStudentsByParentId(actor.id);
+      const kids = await studentsRepository.findStudentsByParentId(
+        actor.id,
+        organizationId,
+      );
       const ids = kids.map((s) => s.id);
       const rows = await lessonsRepository.findInRangeForParentStudents({
+        organizationId,
         from,
         to,
         studentIds: ids,
@@ -79,22 +90,30 @@ export const lessonsService = {
       return rows.map(toLessonResponse);
     }
 
-    if (actor.role === "tutor") {
+    if (organizationRole === "tutor") {
       if (studentId !== undefined) {
-        const student = await studentsRepository.findStudentById(studentId);
+        const student = await studentsRepository.findStudentById(
+          studentId,
+          organizationId,
+        );
         if (!student || student.tutorId !== actor.id) {
           throw new UserForbiddenError("Access denied");
         }
         const rows = await lessonsRepository.findInRangeOverlapping({
+          organizationId,
           from,
           to,
           studentId,
         });
         return rows.map(toLessonResponse);
       }
-      const assigned = await studentsRepository.findStudentByTutorId(actor.id);
+      const assigned = await studentsRepository.findStudentByTutorId(
+        actor.id,
+        organizationId,
+      );
       const assignedIds = assigned.map((s) => s.id);
       const rows = await lessonsRepository.findInRangeForTutorAccess({
+        organizationId,
         from,
         to,
         tutorUserId: actor.id,
@@ -108,28 +127,32 @@ export const lessonsService = {
 
   getLesson: async (req: Request, lessonId: string): Promise<LessonResponse> => {
     const actor = requireUser(req);
-    const lesson = await lessonsRepository.findById(lessonId);
+    const { organizationId, organizationRole } = requireOrganizationContext(req);
+    const lesson = await lessonsRepository.findById(lessonId, organizationId);
     if (!lesson) {
       throw new NotFoundError("Lesson not found");
     }
 
-    const student = await studentsRepository.findStudentById(lesson.studentId);
+    const student = await studentsRepository.findStudentById(
+      lesson.studentId,
+      organizationId,
+    );
     if (!student) {
       throw new NotFoundError("Student not found");
     }
 
-    if (actor.role === "admin") {
+    if (actor.isSuperadmin || organizationRole === "org_admin") {
       return toLessonResponse(lesson);
     }
 
-    if (actor.role === "parent") {
+    if (organizationRole === "parent") {
       if (student.parentId !== actor.id) {
         throw new UserForbiddenError("Access denied");
       }
       return toLessonResponse(lesson);
     }
 
-    if (actor.role === "tutor") {
+    if (organizationRole === "tutor") {
       if (lesson.tutorId === actor.id || student.tutorId === actor.id) {
         return toLessonResponse(lesson);
       }
@@ -144,8 +167,12 @@ export const lessonsService = {
     body: CreateLessonRequest,
   ): Promise<CreateLessonResponse> => {
     requireAdminUser(req);
+    const { organizationId } = requireOrganizationContext(req);
 
-    const student = await studentsRepository.findStudentById(body.studentId);
+    const student = await studentsRepository.findStudentById(
+      body.studentId,
+      organizationId,
+    );
     if (!student) {
       throw new NotFoundError("Student not found");
     }
@@ -162,11 +189,19 @@ export const lessonsService = {
     if (!tutor) {
       throw new NotFoundError("Tutor not found");
     }
-    if (tutor.role !== "tutor") {
-      throw new BadRequestError("Only tutors can be assigned to lessons");
+    const tutorInOrganization = await usersRepository.hasOrganizationMembership(
+      tutor.id,
+      organizationId,
+      "tutor",
+    );
+    if (!tutorInOrganization) {
+      throw new BadRequestError("Tutor must belong to the active organization");
     }
 
-    const subject = await subjectsRepository.findSubjectById(body.subjectId);
+    const subject = await subjectsRepository.findSubjectByIdForOrganization(
+      body.subjectId,
+      organizationId,
+    );
     if (!subject) {
       throw new NotFoundError("Subject not found");
     }
@@ -180,6 +215,7 @@ export const lessonsService = {
     }
 
     const lesson = await lessonsRepository.create({
+      organizationId,
       studentId: body.studentId,
       tutorId: body.tutorId,
       subjectId: body.subjectId,
@@ -196,8 +232,9 @@ export const lessonsService = {
     body: UpdateLessonRequest,
   ): Promise<UpdateLessonResponse> => {
     requireAdminUser(req);
+    const { organizationId } = requireOrganizationContext(req);
 
-    const lesson = await lessonsRepository.findById(lessonId);
+    const lesson = await lessonsRepository.findById(lessonId, organizationId);
     if (!lesson) {
       throw new NotFoundError("Lesson not found");
     }
@@ -212,7 +249,10 @@ export const lessonsService = {
     const resolvedSubjectId = body.subjectId ?? lesson.subjectId;
 
     if (body.tutorId !== undefined || body.subjectId !== undefined) {
-      const student = await studentsRepository.findStudentById(lesson.studentId);
+      const student = await studentsRepository.findStudentById(
+        lesson.studentId,
+        organizationId,
+      );
       if (!student) {
         throw new NotFoundError("Student not found");
       }
@@ -227,14 +267,22 @@ export const lessonsService = {
         if (!tutor) {
           throw new NotFoundError("Tutor not found");
         }
-        if (tutor.role !== "tutor") {
-          throw new BadRequestError("Only tutors can be assigned to lessons");
+        const tutorInOrganization = await usersRepository.hasOrganizationMembership(
+          tutor.id,
+          organizationId,
+          "tutor",
+        );
+        if (!tutorInOrganization) {
+          throw new BadRequestError("Tutor must belong to the active organization");
         }
         patch.tutorId = body.tutorId;
       }
 
       if (body.subjectId !== undefined) {
-        const subject = await subjectsRepository.findSubjectById(resolvedSubjectId);
+        const subject = await subjectsRepository.findSubjectByIdForOrganization(
+          resolvedSubjectId,
+          organizationId,
+        );
         if (!subject) {
           throw new NotFoundError("Subject not found");
         }
@@ -253,7 +301,11 @@ export const lessonsService = {
     if (body.endsAt !== undefined) patch.endsAt = body.endsAt;
     if (body.notes !== undefined) patch.notes = body.notes;
 
-    const updated = await lessonsRepository.updateLesson(lessonId, patch);
+    const updated = await lessonsRepository.updateLesson(
+      lessonId,
+      organizationId,
+      patch,
+    );
     if (!updated) {
       throw new NotFoundError("Lesson not found");
     }
@@ -265,26 +317,30 @@ export const lessonsService = {
     lessonId: string,
   ): Promise<CompleteLessonResponse> => {
     const actor = requireUser(req);
+    const { organizationId, organizationRole } = requireOrganizationContext(req);
 
-    if (actor.role === "parent") {
+    if (organizationRole === "parent") {
       throw new UserForbiddenError("Access denied");
     }
 
-    const lesson = await lessonsRepository.findById(lessonId);
+    const lesson = await lessonsRepository.findById(lessonId, organizationId);
     if (!lesson) {
       throw new NotFoundError("Lesson not found");
     }
 
-    const student = await studentsRepository.findStudentById(lesson.studentId);
+    const student = await studentsRepository.findStudentById(
+      lesson.studentId,
+      organizationId,
+    );
     if (!student) {
       throw new NotFoundError("Student not found");
     }
 
-    if (actor.role === "tutor") {
+    if (organizationRole === "tutor") {
       if (lesson.tutorId !== actor.id && student.tutorId !== actor.id) {
         throw new UserForbiddenError("Access denied");
       }
-    } else if (actor.role !== "admin") {
+    } else if (!(actor.isSuperadmin || organizationRole === "org_admin")) {
       throw new UserForbiddenError("Access denied");
     }
 
@@ -295,7 +351,11 @@ export const lessonsService = {
       throw new BadRequestError("Cannot complete a cancelled lesson");
     }
 
-    const updated = await lessonsRepository.updateStatusById(lessonId, "completed");
+    const updated = await lessonsRepository.updateStatusById(
+      lessonId,
+      organizationId,
+      "completed",
+    );
     if (!updated) {
       throw new NotFoundError("Lesson not found");
     }
@@ -307,26 +367,30 @@ export const lessonsService = {
     lessonId: string,
   ): Promise<CancelLessonResponse> => {
     const actor = requireUser(req);
+    const { organizationId, organizationRole } = requireOrganizationContext(req);
 
-    if (actor.role === "parent") {
+    if (organizationRole === "parent") {
       throw new UserForbiddenError("Access denied");
     }
 
-    const lesson = await lessonsRepository.findById(lessonId);
+    const lesson = await lessonsRepository.findById(lessonId, organizationId);
     if (!lesson) {
       throw new NotFoundError("Lesson not found");
     }
 
-    const student = await studentsRepository.findStudentById(lesson.studentId);
+    const student = await studentsRepository.findStudentById(
+      lesson.studentId,
+      organizationId,
+    );
     if (!student) {
       throw new NotFoundError("Student not found");
     }
 
-    if (actor.role === "tutor") {
+    if (organizationRole === "tutor") {
       if (lesson.tutorId !== actor.id && student.tutorId !== actor.id) {
         throw new UserForbiddenError("Access denied");
       }
-    } else if (actor.role !== "admin") {
+    } else if (!(actor.isSuperadmin || organizationRole === "org_admin")) {
       throw new UserForbiddenError("Access denied");
     }
     // TODO: Add notification for cancellation
@@ -337,7 +401,11 @@ export const lessonsService = {
       throw new BadRequestError("Cannot cancel a completed lesson");
     }
 
-    const updated = await lessonsRepository.updateStatusById(lessonId, "cancelled");
+    const updated = await lessonsRepository.updateStatusById(
+      lessonId,
+      organizationId,
+      "cancelled",
+    );
     if (!updated) {
       throw new NotFoundError("Lesson not found");
     }

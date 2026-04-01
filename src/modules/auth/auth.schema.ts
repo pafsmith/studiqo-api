@@ -29,3 +29,11 @@ export const loginSchema = z.object({
     password: z.string().min(1, "Password is required"),
   }),
 });
+
+export const setActiveOrganizationSchema = z.object({
+  body: z
+    .object({
+      organizationId: z.string().uuid(),
+    })
+    .strict(),
+});

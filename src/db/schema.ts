@@ -1,15 +1,19 @@
 import {
+  boolean,
   index,
-  pgEnum,
   pgTable,
   primaryKey,
   text,
   timestamp,
   varchar,
   uuid,
+  pgEnum,
 } from "drizzle-orm/pg-core";
-
-export const userRoleEnum = pgEnum("user_role", ["tutor", "parent", "admin"]);
+export const organizationMembershipRoleEnum = pgEnum("organization_membership_role", [
+  "org_admin",
+  "tutor",
+  "parent",
+]);
 
 export const lessonStatusEnum = pgEnum("lesson_status", [
   "scheduled",
@@ -27,13 +31,56 @@ export const users = pgTable("users", {
     .$onUpdate(() => new Date()),
   email: varchar("email", { length: 256 }).unique().notNull(),
   hasedPassword: varchar("hased_password", { length: 256 }).notNull(),
-  // TODO: Remove — default new registrations to a non-admin role (e.g. student) once signup chooses role or admins assign it.
-  role: userRoleEnum("role").notNull().default("admin"),
+  isSuperadmin: boolean("is_superadmin").notNull().default(false),
 });
 
 export type NewUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
-export type UserRole = (typeof userRoleEnum.enumValues)[number];
+
+export const organizations = pgTable("organizations", {
+  id: uuid("id").primaryKey().defaultRandom().notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at")
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+  name: varchar("name", { length: 256 }).notNull(),
+  slug: varchar("slug", { length: 256 }).unique().notNull(),
+});
+
+export type NewOrganization = typeof organizations.$inferInsert;
+export type Organization = typeof organizations.$inferSelect;
+
+export const organizationMemberships = pgTable(
+  "organization_memberships",
+  {
+    organizationId: uuid("organization_id")
+      .references(() => organizations.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    role: organizationMembershipRoleEnum("role").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.userId] }),
+    index("organization_memberships_user_id_idx").on(table.userId),
+    index("organization_memberships_organization_id_role_idx").on(
+      table.organizationId,
+      table.role,
+    ),
+  ],
+);
+
+export type NewOrganizationMembership = typeof organizationMemberships.$inferInsert;
+export type OrganizationMembership = typeof organizationMemberships.$inferSelect;
+export type OrganizationMembershipRole =
+  (typeof organizationMembershipRoleEnum.enumValues)[number];
 
 export const refreshTokens = pgTable("refresh_tokens", {
   token: varchar("token", { length: 256 }).primaryKey().notNull(),
@@ -60,6 +107,9 @@ export const students = pgTable("students", {
     .references(() => users.id, { onDelete: "cascade" })
     .notNull(),
   tutorId: uuid("tutor_id").references(() => users.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id")
+    .references(() => organizations.id, { onDelete: "cascade" })
+    .notNull(),
   firstName: varchar("first_name", { length: 256 }).notNull(),
   lastName: varchar("last_name", { length: 256 }).notNull(),
   dateOfBirth: timestamp("date_of_birth").notNull(),
@@ -68,15 +118,25 @@ export const students = pgTable("students", {
 export type NewStudent = typeof students.$inferInsert;
 export type Student = typeof students.$inferSelect;
 
-export const subjects = pgTable("subjects", {
-  id: uuid("id").primaryKey().defaultRandom().notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at")
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-  name: varchar("name", { length: 256 }).notNull(),
-});
+export const subjects = pgTable(
+  "subjects",
+  {
+    id: uuid("id").primaryKey().defaultRandom().notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "cascade",
+    }),
+    name: varchar("name", { length: 256 }).notNull(),
+  },
+  (table) => [
+    index("subjects_organization_id_idx").on(table.organizationId),
+    index("subjects_organization_id_name_idx").on(table.organizationId, table.name),
+  ],
+);
 
 export type NewSubject = typeof subjects.$inferInsert;
 export type Subject = typeof subjects.$inferSelect;
@@ -140,6 +200,9 @@ export const lessons = pgTable(
     subjectId: uuid("subject_id")
       .references(() => subjects.id, { onDelete: "restrict" })
       .notNull(),
+    organizationId: uuid("organization_id")
+      .references(() => organizations.id, { onDelete: "cascade" })
+      .notNull(),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
     status: lessonStatusEnum("status").notNull().default("scheduled"),
@@ -148,6 +211,10 @@ export const lessons = pgTable(
   (table) => [
     index("lessons_tutor_id_starts_at_idx").on(table.tutorId, table.startsAt),
     index("lessons_student_id_starts_at_idx").on(table.studentId, table.startsAt),
+    index("lessons_organization_id_starts_at_idx").on(
+      table.organizationId,
+      table.startsAt,
+    ),
   ],
 );
 

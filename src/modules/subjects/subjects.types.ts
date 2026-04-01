@@ -1,5 +1,6 @@
 export type CreateSubjectRequest = {
   name: string;
+  organizationId?: string | null;
 };
 
 export type SubjectResponse = {
@@ -8,3 +9,4 @@ export type SubjectResponse = {
 };
 
 export type CreateSubjectResponse = SubjectResponse;
+export type ListSubjectsResponse = SubjectResponse[];

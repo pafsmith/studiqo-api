@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-const userRoleSchema = z.enum(["tutor", "parent", "admin"]);
+const organizationMembershipRoleSchema = z.enum(["org_admin", "tutor", "parent"]);
 
 const updateUserBodySchema = z
   .object({
     email: z.string().min(1).max(255).email().optional(),
-    role: userRoleSchema.optional(),
+    role: organizationMembershipRoleSchema.optional(),
   })
   .strict()
   .refine((body) => Object.keys(body).length > 0, {

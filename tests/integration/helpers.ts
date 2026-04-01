@@ -1,8 +1,9 @@
 import request from "supertest";
 import { app } from "../../src/app.js";
 import { db } from "../../src/db/index.js";
-import { users } from "../../src/db/schema.js";
-import type { UserRole } from "../../src/db/schema.js";
+import { eq } from "drizzle-orm";
+import { organizationMemberships, organizations, users } from "../../src/db/schema.js";
+import type { OrganizationMembershipRole } from "../../src/db/schema.js";
 import { authService } from "../../src/modules/auth/auth.service.js";
 
 export const paths = {
@@ -28,7 +29,9 @@ export const validPassword = "TestReg1!";
 export type RegisterResponseBody = {
   id: string;
   email: string;
-  role: "tutor" | "parent" | "student" | "admin";
+  role?: OrganizationMembershipRole;
+  isSuperadmin: boolean;
+  activeOrganizationId?: string;
   createdAt: string;
 };
 
@@ -36,6 +39,25 @@ export type LoginResponseBody = RegisterResponseBody & {
   token: string;
   refreshToken: string;
 };
+
+async function ensureDefaultOrganizationId(): Promise<string> {
+  const [existing] = await db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.slug, "default-organization"))
+    .limit(1);
+  if (existing) {
+    return existing.id;
+  }
+  const [created] = await db
+    .insert(organizations)
+    .values({
+      name: "Default Organization",
+      slug: "default-organization",
+    })
+    .returning();
+  return created.id;
+}
 
 export async function registerUser(email: string): Promise<RegisterResponseBody> {
   const res = await request(app)
@@ -56,7 +78,8 @@ export async function loginUser(email: string): Promise<LoginResponseBody> {
 /** Inserts a user with the given role (for roles that public registration does not create). */
 export async function insertUserWithRole(
   email: string,
-  role: Exclude<UserRole, "admin">,
+  role: Exclude<OrganizationMembershipRole, "org_admin">,
+  organizationId?: string,
 ): Promise<{ id: string; email: string }> {
   const hash = await authService.hashPassword(validPassword);
   const [row] = await db
@@ -64,8 +87,14 @@ export async function insertUserWithRole(
     .values({
       email,
       hasedPassword: hash,
-      role,
     })
     .returning();
+  const resolvedOrganizationId =
+    organizationId ?? (await ensureDefaultOrganizationId());
+  await db.insert(organizationMemberships).values({
+    organizationId: resolvedOrganizationId,
+    userId: row.id,
+    role,
+  });
   return { id: row.id, email: row.email };
 }

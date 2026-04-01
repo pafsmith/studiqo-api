@@ -6,6 +6,7 @@ export function toLessonResponse(lesson: Lesson): LessonResponse {
     id: lesson.id,
     createdAt: lesson.createdAt,
     updatedAt: lesson.updatedAt,
+    organizationId: lesson.organizationId,
     studentId: lesson.studentId,
     tutorId: lesson.tutorId,
     subjectId: lesson.subjectId,

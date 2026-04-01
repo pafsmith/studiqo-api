@@ -18,16 +18,33 @@ describe("subjectsService createSubject", () => {
     vi.mocked(subjectsRepository.createSubject).mockResolvedValue({
       id: "subj-1",
       name: "Mathematics",
+      organizationId: "org-1",
       createdAt: new Date("2024-01-01"),
       updatedAt: new Date("2024-01-01"),
     });
 
-    const out = await subjectsService.createSubject({} as Request, {
-      name: "Mathematics",
-    });
+    const out = await subjectsService.createSubject(
+      {
+        user: {
+          id: "admin-1",
+          email: "admin@example.com",
+          hasedPassword: "h",
+          role: "admin",
+          isSuperadmin: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        organizationId: "org-1",
+        organizationRole: "org_admin",
+      } as Request,
+      {
+        name: "Mathematics",
+      },
+    );
 
     expect(subjectsRepository.createSubject).toHaveBeenCalledWith({
       name: "Mathematics",
+      organizationId: "org-1",
     });
     expect(out).toEqual({
       id: "subj-1",

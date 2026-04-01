@@ -11,6 +11,7 @@ export const subjectsRoutes = Router();
 
 subjectsRoutes.use(authenticate);
 
+subjectsRoutes.get("/", subjectsController.listSubjects);
 subjectsRoutes.post(
   "/",
   requireAdmin,

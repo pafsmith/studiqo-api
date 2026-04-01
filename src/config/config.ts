@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import { MigrationConfig } from "drizzle-orm/migrator";
 
-dotenv.config();
+dotenv.config({ path: process.env.ENV_FILE ?? ".env" });
 
 type Config = {
   api: APIConfig;

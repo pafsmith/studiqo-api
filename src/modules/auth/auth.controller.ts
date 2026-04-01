@@ -23,7 +23,7 @@ export const authController = {
   async getMe(req: Request, res: Response, next: NextFunction) {
     try {
       const user = requireUser(req);
-      respondWithJSON(res, 200, authService.getMe(user));
+      respondWithJSON(res, 200, await authService.getMe(user, req.organizationId));
     } catch (error) {
       next(error);
     }
@@ -40,6 +40,17 @@ export const authController = {
     try {
       await authService.logoutUser(req);
       res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  },
+  async setActiveOrganization(req: Request, res: Response, next: NextFunction) {
+    try {
+      const token = await authService.switchActiveOrganization(
+        req,
+        req.body.organizationId,
+      );
+      respondWithJSON(res, 200, token);
     } catch (error) {
       next(error);
     }

@@ -1,4 +1,5 @@
 import type { User } from "../../db/schema.js";
+import type { OrganizationMembershipRole } from "../../db/schema.js";
 import { LoginUserResponse, RefreshTokenResponse } from "./auth.types.js";
 
 export { toRegisterUserResponse } from "../users/users.mapper.js";
@@ -7,12 +8,16 @@ export function toLoginUserResponse(
   user: User,
   token: string,
   refreshToken: string,
+  activeOrganizationId?: string,
+  role?: OrganizationMembershipRole,
 ): LoginUserResponse {
   return {
     id: user.id,
     email: user.email,
-    role: user.role,
+    role,
     createdAt: user.createdAt,
+    isSuperadmin: user.isSuperadmin,
+    activeOrganizationId,
     token: token,
     refreshToken: refreshToken,
   };

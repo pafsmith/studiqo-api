@@ -1,4 +1,4 @@
-import type { UserRole } from "../../db/schema.js";
+import type { OrganizationMembershipRole } from "../../db/schema.js";
 
 export interface RegisterUserRequest {
   email: string;
@@ -8,8 +8,10 @@ export interface RegisterUserRequest {
 export interface RegisterUserResponse {
   id: string;
   email: string;
-  role: UserRole;
+  role?: OrganizationMembershipRole;
   createdAt: Date;
+  isSuperadmin: boolean;
+  activeOrganizationId?: string;
 }
 
 export interface LoginUserRequest {
@@ -20,8 +22,10 @@ export interface LoginUserRequest {
 export interface LoginUserResponse {
   id: string;
   email: string;
-  role: UserRole;
+  role?: OrganizationMembershipRole;
   createdAt: Date;
+  isSuperadmin: boolean;
+  activeOrganizationId?: string;
   token: string;
   refreshToken: string;
 }
