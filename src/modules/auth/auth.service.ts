@@ -11,6 +11,7 @@ import {
   LoginUserRequest,
   LoginUserResponse,
   RefreshTokenResponse,
+  RefreshTokenSource,
   RegisterUserRequest,
   RegisterUserResponse,
 } from "./auth.types.js";
@@ -23,11 +24,16 @@ import type { JwtPayload } from "jsonwebtoken";
 import jwt from "jsonwebtoken";
 import { config } from "../../config/config.js";
 import crypto from "crypto";
-import { Request } from "express";
+import type { CookieOptions, Request } from "express";
 import type { User } from "../../db/schema.js";
 
 type TokenPayload = Pick<JwtPayload, "iss" | "sub" | "iat" | "exp"> & {
   org?: string;
+};
+
+type ResolvedRefreshToken = {
+  token: string;
+  source: RefreshTokenSource;
 };
 
 export const authService = {
@@ -88,8 +94,45 @@ export const authService = {
     return token;
   },
 
+  getRefreshTokenCookieOptions: (): CookieOptions => {
+    return {
+      httpOnly: true,
+      secure: config.auth.cookieSecure,
+      sameSite: config.auth.cookieSameSite,
+      path: config.auth.cookiePath,
+      domain: config.auth.cookieDomain,
+      maxAge: config.jwt.refreshDuration * 1000,
+    };
+  },
+
+  getRefreshTokenCookieName: (): string => {
+    return config.auth.refreshCookieName;
+  },
+
+  resolveRefreshToken: (req: Request): ResolvedRefreshToken => {
+    const cookieToken = req.cookies?.[config.auth.refreshCookieName];
+    if (typeof cookieToken === "string" && cookieToken.length > 0) {
+      return { token: cookieToken, source: "cookie" };
+    }
+    const headerToken = authService.getBearerToken(req);
+    return { token: headerToken, source: "header" };
+  },
+
   makeRefreshToken: () => {
     return crypto.randomBytes(32).toString("hex");
+  },
+
+  issueRefreshToken: async (userId: string): Promise<string> => {
+    const refreshToken = authService.makeRefreshToken();
+    const createdRefreshToken = await authRepository.createRefreshToken({
+      userId,
+      token: refreshToken,
+      expiresAt: new Date(Date.now() + config.jwt.refreshDuration * 1000),
+    });
+    if (!createdRefreshToken) {
+      throw new BadRequestError("Failed to create refresh token");
+    }
+    return refreshToken;
   },
 
   getDefaultOrganizationId: async (userId: string): Promise<string | undefined> => {
@@ -172,16 +215,7 @@ export const authService = {
       config.jwt.secret,
       organizationId,
     );
-
-    const refreshToken = authService.makeRefreshToken();
-    const newRefreshToken = await authRepository.createRefreshToken({
-      userId: existingUser.id,
-      token: refreshToken,
-      expiresAt: new Date(Date.now() + config.jwt.defaultDuration * 1000),
-    });
-    if (!newRefreshToken) {
-      throw new BadRequestError("Failed to create refresh token");
-    }
+    const refreshToken = await authService.issueRefreshToken(existingUser.id);
 
     return toLoginUserResponse(
       existingUser,
@@ -203,11 +237,13 @@ export const authService = {
     return toRegisterUserResponse(user, activeOrganizationId, role);
   },
   refreshToken: async (req: Request): Promise<RefreshTokenResponse> => {
-    const token = authService.getBearerToken(req);
-    const result = await authRepository.getUserfromRefreshToken(token);
+    const refreshToken = authService.resolveRefreshToken(req);
+    const result = await authRepository.getUserfromRefreshToken(refreshToken.token);
     if (!result) {
       throw new NotFoundError("Refresh token not found");
     }
+    await authRepository.revokeRefreshToken(refreshToken.token);
+    const nextRefreshToken = await authService.issueRefreshToken(result.user.id);
     const user = result.user;
     const organizationId = await authService.getDefaultOrganizationId(user.id);
     const accessToken = authService.makeJWT(
@@ -216,7 +252,7 @@ export const authService = {
       config.jwt.secret,
       organizationId,
     );
-    return toRefreshTokenResponse(accessToken);
+    return toRefreshTokenResponse(accessToken, nextRefreshToken);
   },
 
   switchActiveOrganization: async (
@@ -246,7 +282,7 @@ export const authService = {
   },
 
   logoutUser: async (req: Request): Promise<void> => {
-    const refreshToken = authService.getBearerToken(req);
+    const refreshToken = authService.resolveRefreshToken(req).token;
     await authRepository.revokeRefreshToken(refreshToken);
   },
 };
