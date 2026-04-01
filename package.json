@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
+    "migrate:test": "ENV_FILE=.env.test drizzle-kit migrate",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run tests/integration",
