@@ -1,6 +1,7 @@
 import argon2 from "argon2";
 import { authRepository } from "./auth.repository.js";
 import { usersRepository } from "../users/users.repository.js";
+import { organizationsRepository } from "../organizations/organizations.repository.js";
 import {
   toLoginUserResponse,
   toRefreshTokenResponse,
@@ -25,7 +26,9 @@ import crypto from "crypto";
 import { Request } from "express";
 import type { User } from "../../db/schema.js";
 
-type payload = Pick<JwtPayload, "iss" | "sub" | "iat" | "exp">;
+type TokenPayload = Pick<JwtPayload, "iss" | "sub" | "iat" | "exp"> & {
+  org?: string;
+};
 
 export const authService = {
   hashPassword: async (password: string) => {
@@ -35,18 +38,27 @@ export const authService = {
     return await argon2.verify(hash, password);
   },
 
-  makeJWT: (userId: string, expiresIn: number, secret: string): string => {
+  makeJWT: (
+    userId: string,
+    expiresIn: number,
+    secret: string,
+    organizationId?: string,
+  ): string => {
     const iat = Math.floor(Date.now() / 1000);
-    const payload: payload = {
+    const payload: TokenPayload = {
       iss: "studiqo",
       sub: userId,
       iat,
       exp: iat + expiresIn,
+      org: organizationId,
     };
     return jwt.sign(payload, secret, { algorithm: "HS256" });
   },
-  validateJWT: (tokenString: string, secret: string): string => {
-    let decoded: payload;
+  validateJWT: (
+    tokenString: string,
+    secret: string,
+  ): { userId: string; organizationId?: string } => {
+    let decoded: TokenPayload;
     try {
       decoded = jwt.verify(tokenString, secret) as JwtPayload;
     } catch {
@@ -58,7 +70,10 @@ export const authService = {
     if (!decoded.sub) {
       throw new UserNotAuthenticatedError("No user ID in token");
     }
-    return decoded.sub;
+    return {
+      userId: decoded.sub,
+      organizationId: decoded.org,
+    };
   },
 
   getBearerToken: (req: Request): string => {
@@ -77,6 +92,34 @@ export const authService = {
     return crypto.randomBytes(32).toString("hex");
   },
 
+  getDefaultOrganizationId: async (userId: string): Promise<string | undefined> => {
+    const memberships = await organizationsRepository.listMembershipsForUser(userId);
+    return memberships[0]?.organizationId;
+  },
+
+  getRoleForOrganization: async (
+    userId: string,
+    organizationId?: string,
+  ): Promise<"org_admin" | "tutor" | "parent" | undefined> => {
+    if (!organizationId) {
+      return undefined;
+    }
+    const membership = await organizationsRepository.findMembership(organizationId, userId);
+    return membership?.role;
+  },
+
+  ensureDefaultOrganization: async () => {
+    const existing =
+      await organizationsRepository.findOrganizationBySlug("default-organization");
+    if (existing) {
+      return existing;
+    }
+    return organizationsRepository.createOrganization({
+      name: "Default Organization",
+      slug: "default-organization",
+    });
+  },
+
   registerUser: async (user: RegisterUserRequest): Promise<RegisterUserResponse> => {
     const email = user.email.trim().toLowerCase();
 
@@ -91,7 +134,16 @@ export const authService = {
       email: user.email,
       hasedPassword: hashedPassword,
     });
-    return toRegisterUserResponse(newUser);
+    if (!newUser) {
+      throw new BadRequestError("Failed to create user");
+    }
+    const organization = await authService.ensureDefaultOrganization();
+    await organizationsRepository.createMembership({
+      organizationId: organization.id,
+      userId: newUser.id,
+      role: "org_admin",
+    });
+    return toRegisterUserResponse(newUser, organization.id, "org_admin");
   },
   loginUser: async (user: LoginUserRequest): Promise<LoginUserResponse> => {
     const email = user.email.trim().toLowerCase();
@@ -106,10 +158,16 @@ export const authService = {
     if (!isPasswordValid) {
       throw new BadRequestError("Invalid email or password");
     }
+    const organizationId = await authService.getDefaultOrganizationId(existingUser.id);
+    const organizationRole = await authService.getRoleForOrganization(
+      existingUser.id,
+      organizationId,
+    );
     const accessToken = authService.makeJWT(
       existingUser.id,
       config.jwt.defaultDuration,
       config.jwt.secret,
+      organizationId,
     );
 
     const refreshToken = authService.makeRefreshToken();
@@ -122,11 +180,18 @@ export const authService = {
       throw new BadRequestError("Failed to create refresh token");
     }
 
-    return toLoginUserResponse(existingUser, accessToken, refreshToken);
+    return toLoginUserResponse(
+      existingUser,
+      accessToken,
+      refreshToken,
+      organizationId,
+      organizationRole,
+    );
   },
 
-  getMe: (user: User): RegisterUserResponse => {
-    return toRegisterUserResponse(user);
+  getMe: async (user: User, activeOrganizationId?: string): Promise<RegisterUserResponse> => {
+    const role = await authService.getRoleForOrganization(user.id, activeOrganizationId);
+    return toRegisterUserResponse(user, activeOrganizationId, role);
   },
   refreshToken: async (req: Request): Promise<RefreshTokenResponse> => {
     const token = authService.getBearerToken(req);
@@ -135,12 +200,40 @@ export const authService = {
       throw new NotFoundError("Refresh token not found");
     }
     const user = result.user;
+    const organizationId = await authService.getDefaultOrganizationId(user.id);
     const accessToken = authService.makeJWT(
       user.id,
       config.jwt.defaultDuration,
       config.jwt.secret,
+      organizationId,
     );
     return toRefreshTokenResponse(accessToken);
+  },
+
+  switchActiveOrganization: async (
+    req: Request,
+    organizationId: string,
+  ): Promise<RefreshTokenResponse> => {
+    const actor = req.user;
+    if (!actor) {
+      throw new UserNotAuthenticatedError("Not authenticated");
+    }
+    if (!actor.isSuperadmin) {
+      const membership = await organizationsRepository.findMembership(
+        organizationId,
+        actor.id,
+      );
+      if (!membership) {
+        throw new UserNotAuthenticatedError("Not a member of organization");
+      }
+    }
+    const token = authService.makeJWT(
+      actor.id,
+      config.jwt.defaultDuration,
+      config.jwt.secret,
+      organizationId,
+    );
+    return toRefreshTokenResponse(token);
   },
 
   logoutUser: async (req: Request): Promise<void> => {
