@@ -23,7 +23,10 @@ export const subjectsRepository = {
       .where(
         and(
           eq(subjects.id, id),
-          or(eq(subjects.organizationId, organizationId), isNull(subjects.organizationId)),
+          or(
+            eq(subjects.organizationId, organizationId),
+            isNull(subjects.organizationId),
+          ),
         ),
       );
     return row;
@@ -34,7 +37,10 @@ export const subjectsRepository = {
       .select()
       .from(subjects)
       .where(
-        or(eq(subjects.organizationId, organizationId), isNull(subjects.organizationId)),
+        or(
+          eq(subjects.organizationId, organizationId),
+          isNull(subjects.organizationId),
+        ),
       )
       .orderBy(asc(subjects.name), asc(subjects.id));
   },

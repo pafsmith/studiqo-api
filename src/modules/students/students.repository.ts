@@ -52,15 +52,23 @@ export const studentsRepository = {
       .select()
       .from(students)
       .where(
-        and(eq(students.parentId, parentId), eq(students.organizationId, organizationId)),
+        and(
+          eq(students.parentId, parentId),
+          eq(students.organizationId, organizationId),
+        ),
       );
   },
 
-  findStudentByTutorId: async (tutorId: string, organizationId: string): Promise<Student[]> => {
+  findStudentByTutorId: async (
+    tutorId: string,
+    organizationId: string,
+  ): Promise<Student[]> => {
     return db
       .select()
       .from(students)
-      .where(and(eq(students.tutorId, tutorId), eq(students.organizationId, organizationId)));
+      .where(
+        and(eq(students.tutorId, tutorId), eq(students.organizationId, organizationId)),
+      );
   },
 
   deleteStudentById: async (id: string, organizationId: string): Promise<boolean> => {

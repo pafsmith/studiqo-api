@@ -211,7 +211,10 @@ export const lessons = pgTable(
   (table) => [
     index("lessons_tutor_id_starts_at_idx").on(table.tutorId, table.startsAt),
     index("lessons_student_id_starts_at_idx").on(table.studentId, table.startsAt),
-    index("lessons_organization_id_starts_at_idx").on(table.organizationId, table.startsAt),
+    index("lessons_organization_id_starts_at_idx").on(
+      table.organizationId,
+      table.startsAt,
+    ),
   ],
 );
 

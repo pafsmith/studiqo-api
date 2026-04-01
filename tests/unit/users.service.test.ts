@@ -71,7 +71,9 @@ describe("usersService updateUser", () => {
   });
 
   it("rejects duplicate email", async () => {
-    vi.mocked(usersRepository.getUserByIdInOrganization).mockResolvedValue(existingUser);
+    vi.mocked(usersRepository.getUserByIdInOrganization).mockResolvedValue(
+      existingUser,
+    );
     vi.mocked(usersRepository.getUserByEmail).mockResolvedValue({
       id: "other-user",
       email: "taken@b.com",
@@ -91,7 +93,9 @@ describe("usersService updateUser", () => {
   });
 
   it("allows same email for the same user", async () => {
-    vi.mocked(usersRepository.getUserByIdInOrganization).mockResolvedValue(existingUser);
+    vi.mocked(usersRepository.getUserByIdInOrganization).mockResolvedValue(
+      existingUser,
+    );
     vi.mocked(usersRepository.getUserByEmail).mockResolvedValue(existingUser);
     vi.mocked(usersRepository.updateUser).mockResolvedValue({
       ...existingUser,
@@ -116,7 +120,9 @@ describe("usersService updateUser", () => {
   });
 
   it("updates role for an admin", async () => {
-    vi.mocked(usersRepository.getUserByIdInOrganization).mockResolvedValue(existingUser);
+    vi.mocked(usersRepository.getUserByIdInOrganization).mockResolvedValue(
+      existingUser,
+    );
     vi.mocked(usersRepository.updateUser).mockResolvedValue({
       ...existingUser,
     });

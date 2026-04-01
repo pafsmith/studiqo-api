@@ -53,11 +53,17 @@ export const studentsService = {
       return rows.map(toStudentResponse);
     }
     if (organizationRole === "parent") {
-      const rows = await studentsRepository.findStudentsByParentId(actor.id, organizationId);
+      const rows = await studentsRepository.findStudentsByParentId(
+        actor.id,
+        organizationId,
+      );
       return rows.map(toStudentResponse);
     }
     if (organizationRole === "tutor") {
-      const rows = await studentsRepository.findStudentByTutorId(actor.id, organizationId);
+      const rows = await studentsRepository.findStudentByTutorId(
+        actor.id,
+        organizationId,
+      );
       return rows.map(toStudentResponse);
     }
     throw new UserForbiddenError("Access denied");
@@ -136,7 +142,10 @@ export const studentsService = {
     requireAdminUser(req);
     const { organizationId } = requireOrganizationContext(req);
 
-    const existing = await studentsRepository.findStudentById(studentId, organizationId);
+    const existing = await studentsRepository.findStudentById(
+      studentId,
+      organizationId,
+    );
     if (!existing) {
       throw new NotFoundError("Student not found");
     }
@@ -171,7 +180,11 @@ export const studentsService = {
       }
     }
 
-    const updated = await studentsRepository.updateStudent(studentId, organizationId, body);
+    const updated = await studentsRepository.updateStudent(
+      studentId,
+      organizationId,
+      body,
+    );
     if (!updated) {
       throw new NotFoundError("Student not found");
     }
@@ -183,7 +196,10 @@ export const studentsService = {
     requireAdminUser(req);
     const { organizationId } = requireOrganizationContext(req);
 
-    const deleted = await studentsRepository.deleteStudentById(studentId, organizationId);
+    const deleted = await studentsRepository.deleteStudentById(
+      studentId,
+      organizationId,
+    );
     if (!deleted) {
       throw new NotFoundError("Student not found");
     }

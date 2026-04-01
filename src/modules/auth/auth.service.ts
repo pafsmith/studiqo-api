@@ -104,7 +104,10 @@ export const authService = {
     if (!organizationId) {
       return undefined;
     }
-    const membership = await organizationsRepository.findMembership(organizationId, userId);
+    const membership = await organizationsRepository.findMembership(
+      organizationId,
+      userId,
+    );
     return membership?.role;
   },
 
@@ -189,8 +192,14 @@ export const authService = {
     );
   },
 
-  getMe: async (user: User, activeOrganizationId?: string): Promise<RegisterUserResponse> => {
-    const role = await authService.getRoleForOrganization(user.id, activeOrganizationId);
+  getMe: async (
+    user: User,
+    activeOrganizationId?: string,
+  ): Promise<RegisterUserResponse> => {
+    const role = await authService.getRoleForOrganization(
+      user.id,
+      activeOrganizationId,
+    );
     return toRegisterUserResponse(user, activeOrganizationId, role);
   },
   refreshToken: async (req: Request): Promise<RefreshTokenResponse> => {

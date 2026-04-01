@@ -21,7 +21,10 @@ export const organizationsRepository = {
   },
 
   findOrganizationBySlug: async (slug: string): Promise<Organization | undefined> => {
-    const [row] = await db.select().from(organizations).where(eq(organizations.slug, slug));
+    const [row] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.slug, slug));
     return row;
   },
 

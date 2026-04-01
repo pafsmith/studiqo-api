@@ -88,9 +88,7 @@ describe("studentsService listStudents", () => {
       }),
     );
 
-    expect(studentsRepository.findAllStudents).toHaveBeenCalledWith(
-      "org-1",
-    );
+    expect(studentsRepository.findAllStudents).toHaveBeenCalledWith("org-1");
     expect(studentsRepository.findStudentsByParentId).not.toHaveBeenCalled();
     expect(out).toEqual([
       {
@@ -173,10 +171,7 @@ describe("studentsService listStudents", () => {
       }),
     );
 
-    expect(studentsRepository.findStudentByTutorId).toHaveBeenCalledWith(
-      "t1",
-      "org-1",
-    );
+    expect(studentsRepository.findStudentByTutorId).toHaveBeenCalledWith("t1", "org-1");
     expect(studentsRepository.findAllStudents).not.toHaveBeenCalled();
     expect(studentsRepository.findStudentsByParentId).not.toHaveBeenCalled();
     expect(out).toEqual([
@@ -374,14 +369,10 @@ describe("studentsService updateStudent", () => {
     });
 
     expect(usersRepository.getUserById).toHaveBeenCalledWith(newParentId);
-    expect(studentsRepository.updateStudent).toHaveBeenCalledWith(
-      "stu-1",
-      "org-1",
-      {
-        parentId: newParentId,
-        firstName: "Updated",
-      },
-    );
+    expect(studentsRepository.updateStudent).toHaveBeenCalledWith("stu-1", "org-1", {
+      parentId: newParentId,
+      firstName: "Updated",
+    });
     expect(out.firstName).toBe("Updated");
     expect(out.parentId).toBe(newParentId);
   });
@@ -440,10 +431,7 @@ describe("studentsService deleteStudent", () => {
 
     await studentsService.deleteStudent(reqWithUser(adminUser), "stu-1");
 
-    expect(studentsRepository.deleteStudentById).toHaveBeenCalledWith(
-      "stu-1",
-      "org-1",
-    );
+    expect(studentsRepository.deleteStudentById).toHaveBeenCalledWith("stu-1", "org-1");
   });
 });
 

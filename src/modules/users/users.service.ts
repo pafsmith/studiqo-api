@@ -43,7 +43,10 @@ export const usersService = {
     }
 
     if (body.role !== undefined) {
-      const membership = await organizationsRepository.findMembership(organizationId, userId);
+      const membership = await organizationsRepository.findMembership(
+        organizationId,
+        userId,
+      );
       if (!membership) {
         throw new NotFoundError("Organization membership not found");
       }
@@ -77,7 +80,10 @@ export const usersService = {
     const { organizationId } = requireOrganizationContext(req);
 
     if (!actor.isSuperadmin) {
-      const existing = await usersRepository.getUserByIdInOrganization(userId, organizationId);
+      const existing = await usersRepository.getUserByIdInOrganization(
+        userId,
+        organizationId,
+      );
       if (!existing) {
         throw new NotFoundError("User not found");
       }

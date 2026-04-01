@@ -89,7 +89,8 @@ export async function insertUserWithRole(
       hasedPassword: hash,
     })
     .returning();
-  const resolvedOrganizationId = organizationId ?? (await ensureDefaultOrganizationId());
+  const resolvedOrganizationId =
+    organizationId ?? (await ensureDefaultOrganizationId());
   await db.insert(organizationMemberships).values({
     organizationId: resolvedOrganizationId,
     userId: row.id,

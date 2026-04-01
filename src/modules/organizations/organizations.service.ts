@@ -61,7 +61,8 @@ export const organizationsService = {
   ): Promise<OrganizationMembershipResponse> => {
     const actor = requireUser(req);
     const context = requireOrganizationContext(req);
-    const organization = await organizationsRepository.findOrganizationById(organizationId);
+    const organization =
+      await organizationsRepository.findOrganizationById(organizationId);
     if (!organization) {
       throw new NotFoundError("Organization not found");
     }
@@ -96,11 +97,13 @@ export const organizationsService = {
       }
       requireAdminUser(req);
     }
-    const organization = await organizationsRepository.findOrganizationById(organizationId);
+    const organization =
+      await organizationsRepository.findOrganizationById(organizationId);
     if (!organization) {
       throw new NotFoundError("Organization not found");
     }
-    const rows = await organizationsRepository.listMembershipsForOrganization(organizationId);
+    const rows =
+      await organizationsRepository.listMembershipsForOrganization(organizationId);
     return rows.map(toOrganizationMembershipResponse);
   },
 };

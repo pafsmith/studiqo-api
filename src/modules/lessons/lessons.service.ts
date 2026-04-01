@@ -61,7 +61,10 @@ export const lessonsService = {
 
     if (organizationRole === "parent") {
       if (studentId !== undefined) {
-        const student = await studentsRepository.findStudentById(studentId, organizationId);
+        const student = await studentsRepository.findStudentById(
+          studentId,
+          organizationId,
+        );
         if (!student || student.parentId !== actor.id) {
           throw new UserForbiddenError("Access denied");
         }
@@ -73,7 +76,10 @@ export const lessonsService = {
         });
         return rows.map(toLessonResponse);
       }
-      const kids = await studentsRepository.findStudentsByParentId(actor.id, organizationId);
+      const kids = await studentsRepository.findStudentsByParentId(
+        actor.id,
+        organizationId,
+      );
       const ids = kids.map((s) => s.id);
       const rows = await lessonsRepository.findInRangeForParentStudents({
         organizationId,
@@ -86,7 +92,10 @@ export const lessonsService = {
 
     if (organizationRole === "tutor") {
       if (studentId !== undefined) {
-        const student = await studentsRepository.findStudentById(studentId, organizationId);
+        const student = await studentsRepository.findStudentById(
+          studentId,
+          organizationId,
+        );
         if (!student || student.tutorId !== actor.id) {
           throw new UserForbiddenError("Access denied");
         }
@@ -98,7 +107,10 @@ export const lessonsService = {
         });
         return rows.map(toLessonResponse);
       }
-      const assigned = await studentsRepository.findStudentByTutorId(actor.id, organizationId);
+      const assigned = await studentsRepository.findStudentByTutorId(
+        actor.id,
+        organizationId,
+      );
       const assignedIds = assigned.map((s) => s.id);
       const rows = await lessonsRepository.findInRangeForTutorAccess({
         organizationId,
@@ -121,7 +133,10 @@ export const lessonsService = {
       throw new NotFoundError("Lesson not found");
     }
 
-    const student = await studentsRepository.findStudentById(lesson.studentId, organizationId);
+    const student = await studentsRepository.findStudentById(
+      lesson.studentId,
+      organizationId,
+    );
     if (!student) {
       throw new NotFoundError("Student not found");
     }
@@ -154,7 +169,10 @@ export const lessonsService = {
     requireAdminUser(req);
     const { organizationId } = requireOrganizationContext(req);
 
-    const student = await studentsRepository.findStudentById(body.studentId, organizationId);
+    const student = await studentsRepository.findStudentById(
+      body.studentId,
+      organizationId,
+    );
     if (!student) {
       throw new NotFoundError("Student not found");
     }
@@ -231,7 +249,10 @@ export const lessonsService = {
     const resolvedSubjectId = body.subjectId ?? lesson.subjectId;
 
     if (body.tutorId !== undefined || body.subjectId !== undefined) {
-      const student = await studentsRepository.findStudentById(lesson.studentId, organizationId);
+      const student = await studentsRepository.findStudentById(
+        lesson.studentId,
+        organizationId,
+      );
       if (!student) {
         throw new NotFoundError("Student not found");
       }
@@ -280,7 +301,11 @@ export const lessonsService = {
     if (body.endsAt !== undefined) patch.endsAt = body.endsAt;
     if (body.notes !== undefined) patch.notes = body.notes;
 
-    const updated = await lessonsRepository.updateLesson(lessonId, organizationId, patch);
+    const updated = await lessonsRepository.updateLesson(
+      lessonId,
+      organizationId,
+      patch,
+    );
     if (!updated) {
       throw new NotFoundError("Lesson not found");
     }
@@ -303,7 +328,10 @@ export const lessonsService = {
       throw new NotFoundError("Lesson not found");
     }
 
-    const student = await studentsRepository.findStudentById(lesson.studentId, organizationId);
+    const student = await studentsRepository.findStudentById(
+      lesson.studentId,
+      organizationId,
+    );
     if (!student) {
       throw new NotFoundError("Student not found");
     }
@@ -350,7 +378,10 @@ export const lessonsService = {
       throw new NotFoundError("Lesson not found");
     }
 
-    const student = await studentsRepository.findStudentById(lesson.studentId, organizationId);
+    const student = await studentsRepository.findStudentById(
+      lesson.studentId,
+      organizationId,
+    );
     if (!student) {
       throw new NotFoundError("Student not found");
     }

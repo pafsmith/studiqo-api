@@ -25,10 +25,7 @@ export const lessonsRepository = {
     return result;
   },
 
-  findById: async (
-    id: string,
-    organizationId: string,
-  ): Promise<Lesson | undefined> => {
+  findById: async (id: string, organizationId: string): Promise<Lesson | undefined> => {
     const [row] = await db
       .select()
       .from(lessons)
@@ -68,7 +65,10 @@ export const lessonsRepository = {
     params: FindLessonsInRangeParams,
   ): Promise<Lesson[]> => {
     const { from, to, studentId, tutorId, organizationId } = params;
-    const conditions = [overlapRange(from, to), eq(lessons.organizationId, organizationId)];
+    const conditions = [
+      overlapRange(from, to),
+      eq(lessons.organizationId, organizationId),
+    ];
     if (studentId !== undefined) {
       conditions.push(eq(lessons.studentId, studentId));
     }
@@ -123,7 +123,9 @@ export const lessonsRepository = {
     return db
       .select()
       .from(lessons)
-      .where(and(overlapRange(from, to), scope, eq(lessons.organizationId, organizationId)))
+      .where(
+        and(overlapRange(from, to), scope, eq(lessons.organizationId, organizationId)),
+      )
       .orderBy(asc(lessons.startsAt), asc(lessons.id));
   },
 };

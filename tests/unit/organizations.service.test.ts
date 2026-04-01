@@ -51,7 +51,9 @@ describe("organizationsService", () => {
   });
 
   it("creates an organization and memberships creator as org_admin", async () => {
-    vi.mocked(organizationsRepository.findOrganizationBySlug).mockResolvedValue(undefined);
+    vi.mocked(organizationsRepository.findOrganizationBySlug).mockResolvedValue(
+      undefined,
+    );
     vi.mocked(organizationsRepository.createOrganization).mockResolvedValue({
       id: "org-2",
       name: "Center Two",
@@ -144,7 +146,9 @@ describe("organizationsService", () => {
   });
 
   it("returns 404 when listing members for unknown organization", async () => {
-    vi.mocked(organizationsRepository.findOrganizationById).mockResolvedValue(undefined);
+    vi.mocked(organizationsRepository.findOrganizationById).mockResolvedValue(
+      undefined,
+    );
 
     await expect(
       organizationsService.listOrganizationMembers(
