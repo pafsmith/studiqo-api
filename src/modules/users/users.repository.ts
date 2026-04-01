@@ -1,6 +1,12 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { NewUser, User, users } from "../../db/schema.js";
+import {
+  NewUser,
+  OrganizationMembershipRole,
+  User,
+  organizationMemberships,
+  users,
+} from "../../db/schema.js";
 
 /** Persistence for the `users` table. */
 export const usersRepository = {
@@ -27,9 +33,53 @@ export const usersRepository = {
     return result;
   },
 
+  getUserByIdInOrganization: async (
+    id: string,
+    organizationId: string,
+  ): Promise<User | undefined> => {
+    const [result] = await db
+      .select({
+        id: users.id,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+        email: users.email,
+        hasedPassword: users.hasedPassword,
+        isSuperadmin: users.isSuperadmin,
+      })
+      .from(users)
+      .innerJoin(organizationMemberships, eq(users.id, organizationMemberships.userId))
+      .where(
+        and(
+          eq(users.id, id),
+          eq(organizationMemberships.organizationId, organizationId),
+        ),
+      )
+      .limit(1);
+    return result;
+  },
+
+  hasOrganizationMembership: async (
+    userId: string,
+    organizationId: string,
+    role?: OrganizationMembershipRole,
+  ): Promise<boolean> => {
+    const [result] = await db
+      .select({ userId: organizationMemberships.userId })
+      .from(organizationMemberships)
+      .where(
+        and(
+          eq(organizationMemberships.userId, userId),
+          eq(organizationMemberships.organizationId, organizationId),
+          role ? eq(organizationMemberships.role, role) : undefined,
+        ),
+      )
+      .limit(1);
+    return result !== undefined;
+  },
+
   updateUser: async (
     id: string,
-    patch: Partial<Pick<NewUser, "email" | "role">>,
+    patch: Partial<Pick<NewUser, "email">>,
   ): Promise<User | undefined> => {
     const [result] = await db
       .update(users)

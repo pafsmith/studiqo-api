@@ -1,9 +1,9 @@
 import type { RegisterUserResponse } from "../auth/auth.types.js";
-import type { UserRole } from "../../db/schema.js";
+import type { OrganizationMembershipRole } from "../../db/schema.js";
 
 export type UpdateUserRequest = {
   email?: string;
-  role?: UserRole;
+  role?: OrganizationMembershipRole;
 };
 
 export type UpdateUserResponse = RegisterUserResponse;
