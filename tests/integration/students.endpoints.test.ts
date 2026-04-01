@@ -216,7 +216,7 @@ describe("POST /api/v1/students", () => {
       .expect("Content-Type", /json/)
       .expect(403);
 
-    expect(res.body.error).toMatch(/only parents can be linked/i);
+    expect(res.body.error).toMatch(/parent must belong to the active organization/i);
   });
 
   it("returns 201 and the student payload for a valid body", async () => {

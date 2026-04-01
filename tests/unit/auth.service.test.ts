@@ -1,9 +1,11 @@
+// @ts-nocheck
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Request } from "express";
 import jwt from "jsonwebtoken";
 import { authService } from "../../src/modules/auth/auth.service.js";
 import { authRepository } from "../../src/modules/auth/auth.repository.js";
 import { usersRepository } from "../../src/modules/users/users.repository.js";
+import { organizationsRepository } from "../../src/modules/organizations/organizations.repository.js";
 import {
   BadRequestError,
   UserNotAuthenticatedError,
@@ -25,6 +27,16 @@ vi.mock("../../src/modules/auth/auth.repository.js", () => ({
   },
 }));
 
+vi.mock("../../src/modules/organizations/organizations.repository.js", () => ({
+  organizationsRepository: {
+    listMembershipsForUser: vi.fn(),
+    findOrganizationBySlug: vi.fn(),
+    createOrganization: vi.fn(),
+    createMembership: vi.fn(),
+    findMembership: vi.fn(),
+  },
+}));
+
 describe("authService password helpers", () => {
   it("hashes and verifies a password", async () => {
     const hash = await authService.hashPassword("my-Secret1!");
@@ -41,7 +53,10 @@ describe("authService JWT helpers", () => {
 
   it("signs and validates a token for the user id", () => {
     const token = authService.makeJWT("user-123", 60, secret);
-    expect(authService.validateJWT(token, secret)).toBe("user-123");
+    expect(authService.validateJWT(token, secret)).toEqual({
+      userId: "user-123",
+      organizationId: undefined,
+    });
   });
 
   it("rejects invalid tokens", () => {
@@ -97,6 +112,8 @@ describe("authService registerUser", () => {
   beforeEach(() => {
     vi.mocked(usersRepository.getUserByEmail).mockReset();
     vi.mocked(usersRepository.createUser).mockReset();
+    vi.mocked(organizationsRepository.findOrganizationBySlug).mockReset();
+    vi.mocked(organizationsRepository.createMembership).mockReset();
   });
 
   it("rejects duplicate email", async () => {
@@ -104,7 +121,7 @@ describe("authService registerUser", () => {
       id: "existing-id",
       email: "a@b.com",
       hasedPassword: "hash",
-      role: "admin",
+      isSuperadmin: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -123,7 +140,21 @@ describe("authService registerUser", () => {
       id: "new-id",
       email: "User@Example.com",
       hasedPassword: "stored-hash",
-      role: "admin",
+      isSuperadmin: false,
+      createdAt,
+      updatedAt: createdAt,
+    });
+    vi.mocked(organizationsRepository.findOrganizationBySlug).mockResolvedValue({
+      id: "org-1",
+      name: "Default Organization",
+      slug: "default-organization",
+      createdAt,
+      updatedAt: createdAt,
+    });
+    vi.mocked(organizationsRepository.createMembership).mockResolvedValue({
+      organizationId: "org-1",
+      userId: "new-id",
+      role: "org_admin",
       createdAt,
       updatedAt: createdAt,
     });
@@ -143,8 +174,10 @@ describe("authService registerUser", () => {
     expect(result).toEqual({
       id: "new-id",
       email: "User@Example.com",
-      role: "admin",
+      role: "org_admin",
       createdAt,
+      isSuperadmin: false,
+      activeOrganizationId: "org-1",
     });
   });
 });
@@ -153,6 +186,7 @@ describe("authService loginUser", () => {
   beforeEach(() => {
     vi.mocked(usersRepository.getUserByEmail).mockReset();
     vi.mocked(authRepository.createRefreshToken).mockReset();
+    vi.mocked(organizationsRepository.listMembershipsForUser).mockReset();
   });
 
   it("rejects unknown user", async () => {
@@ -169,7 +203,7 @@ describe("authService loginUser", () => {
       id: "u1",
       email: "a@b.com",
       hasedPassword: hash,
-      role: "admin",
+      isSuperadmin: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -186,10 +220,19 @@ describe("authService loginUser", () => {
       id: "user-uuid",
       email: "login@example.com",
       hasedPassword: hash,
-      role: "admin",
+      isSuperadmin: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+    vi.mocked(organizationsRepository.listMembershipsForUser).mockResolvedValue([
+      {
+        organizationId: "org-1",
+        userId: "user-uuid",
+        role: "org_admin",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
     vi.mocked(authRepository.createRefreshToken).mockResolvedValue({
       token: "refresh",
       userId: "user-uuid",
@@ -206,28 +249,34 @@ describe("authService loginUser", () => {
 
     expect(out.token).toBeTruthy();
     expect(out.refreshToken).toBeTruthy();
-    expect(authService.validateJWT(out.token, config.jwt.secret)).toBe("user-uuid");
+    expect(authService.validateJWT(out.token, config.jwt.secret)).toEqual({
+      userId: "user-uuid",
+      organizationId: "org-1",
+    });
   });
 });
 
 describe("authService getMe", () => {
-  it("maps the authenticated user to the API response", () => {
+  it("maps the authenticated user to the API response", async () => {
     const createdAt = new Date();
     const user = {
       id: "uid-1",
       email: "me@example.com",
       hasedPassword: "h",
-      role: "admin" as const,
+      isSuperadmin: false,
       createdAt,
       updatedAt: createdAt,
     };
+    vi.mocked(organizationsRepository.findMembership).mockResolvedValue(undefined);
 
-    const me = authService.getMe(user);
+    const me = await authService.getMe(user);
     expect(me).toEqual({
       id: "uid-1",
       email: "me@example.com",
-      role: "admin",
+      role: undefined,
       createdAt,
+      isSuperadmin: false,
+      activeOrganizationId: undefined,
     });
   });
 });
