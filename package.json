@@ -27,6 +27,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@sentry/node": "^10.47.0",
     "@types/jsonwebtoken": "^9.0.10",
     "argon2": "^0.44.0",
     "cookie-parser": "^1.4.7",
