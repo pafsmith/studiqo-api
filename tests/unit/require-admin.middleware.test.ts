@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect, vi } from "vitest";
 import type { Request, Response } from "express";
 import type { OrganizationMembershipRole, User } from "../../src/db/schema.js";
