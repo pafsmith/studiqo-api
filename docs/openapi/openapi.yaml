@@ -28,6 +28,7 @@ servers:
 tags:
   - name: Health
   - name: Auth
+  - name: Organizations
   - name: Users
   - name: Subjects
   - name: Students
@@ -164,6 +165,48 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /auth/active-organization:
+    post:
+      tags: [Auth]
+      summary: Switch active organization context
+      operationId: setActiveOrganization
+      description: |
+        Issues a new access token scoped to the requested organization.
+        The caller must be a member of the organization unless they are superadmin.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetActiveOrganizationRequest"
+      responses:
+        "200":
+          description: New access JWT for selected organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshTokenResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Caller cannot access requested organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /auth/logout:
     post:
       tags: [Auth]
@@ -183,12 +226,143 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /organizations:
+    get:
+      tags: [Organizations]
+      summary: List caller organizations
+      operationId: listMyOrganizations
+      description: |
+        Returns organizations visible to the caller.
+        Superadmins receive all organizations.
+      responses:
+        "200":
+          description: Organizations list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Organization"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags: [Organizations]
+      summary: Create organization
+      operationId: createOrganization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrganizationRequest"
+      responses:
+        "201":
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+        "400":
+          description: Validation error or duplicate slug
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /organizations/{organizationId}/members:
+    get:
+      tags: [Organizations]
+      summary: List organization members
+      operationId: listOrganizationMembers
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      responses:
+        "200":
+          description: Organization memberships
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrganizationMembership"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Organization not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags: [Organizations]
+      summary: Add or update organization membership
+      operationId: addOrganizationMember
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddOrganizationMemberRequest"
+      responses:
+        "201":
+          description: Membership created or updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationMembership"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Organization or user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /users/{userId}:
     put:
       tags: [Users]
       summary: Update user
       operationId: updateUser
-      description: Admin only. At least one of `email` or `role` must be provided.
+      description: Organization admin only. At least one of `email` or `role` must be provided. `role` updates membership role in the active organization.
       parameters:
         - $ref: "#/components/parameters/UserId"
       requestBody:
@@ -258,6 +432,26 @@ paths:
                 $ref: "#/components/schemas/Error"
 
   /subjects:
+    get:
+      tags: [Subjects]
+      summary: List subjects for active organization
+      operationId: listSubjects
+      description: Returns global subjects and subjects scoped to the active organization.
+      responses:
+        "200":
+          description: Subject list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subject"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     post:
       tags: [Subjects]
       summary: Create subject
@@ -327,7 +521,7 @@ paths:
       tags: [Students]
       summary: Create student
       operationId: createStudent
-      description: Admin only. `parentId` must reference a user with role `parent`. Optional `tutorId` must reference a `tutor`.
+      description: Organization admin only. `parentId` must reference a user with `parent` membership in the active organization. Optional `tutorId` must reference a `tutor` membership.
       requestBody:
         required: true
         content:
@@ -354,7 +548,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
-          description: Admin only or invalid parent/tutor role
+          description: Admin only or invalid parent/tutor membership role
           content:
             application/json:
               schema:
@@ -432,7 +626,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
-          description: Admin only or invalid parent/tutor role
+          description: Admin only or invalid parent/tutor membership role
           content:
             application/json:
               schema:
@@ -857,6 +1051,99 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    put:
+      tags: [Lessons]
+      summary: Update lesson
+      operationId: updateLesson
+      description: Admin only. At least one field required.
+      parameters:
+        - $ref: "#/components/parameters/LessonId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLessonRequest"
+      responses:
+        "200":
+          description: Updated lesson
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+        "400":
+          description: Validation or business rule error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Caller is not an admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Lesson or related resource not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /lessons/{lessonId}/complete:
+    post:
+      tags: [Lessons]
+      summary: Complete a lesson
+      operationId: completeLesson
+      description: |
+        Admin or assigned tutor only. Idempotent when already completed.
+      parameters:
+        - $ref: "#/components/parameters/LessonId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+            example: {}
+      responses:
+        "200":
+          description: Lesson (status `completed` or unchanged if already completed)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+        "400":
+          description: Invalid transition (e.g. lesson cancelled)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Only admin or assigned tutor may complete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Lesson or student not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /lessons/{lessonId}/cancel:
     post:
@@ -932,6 +1219,13 @@ components:
       schema:
         type: string
         format: uuid
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     StudentId:
       name: studentId
       in: path
@@ -956,13 +1250,9 @@ components:
           type: string
       additionalProperties: false
 
-    UserRole:
-      type: string
-      enum: [tutor, parent, admin]
-
     UserPublic:
       type: object
-      required: [id, email, role, createdAt]
+      required: [id, email, createdAt, isSuperadmin]
       properties:
         id:
           type: string
@@ -971,10 +1261,16 @@ components:
           type: string
           format: email
         role:
-          $ref: "#/components/schemas/UserRole"
+          $ref: "#/components/schemas/OrganizationMembershipRole"
+          description: Active-organization membership role when available.
         createdAt:
           type: string
           format: date-time
+        isSuperadmin:
+          type: boolean
+        activeOrganizationId:
+          type: string
+          format: uuid
       additionalProperties: false
 
     RegisterRequest:
@@ -1005,7 +1301,7 @@ components:
 
     LoginResponse:
       type: object
-      required: [id, email, role, createdAt, token, refreshToken]
+      required: [id, email, createdAt, isSuperadmin, token, refreshToken]
       properties:
         id:
           type: string
@@ -1014,10 +1310,16 @@ components:
           type: string
           format: email
         role:
-          $ref: "#/components/schemas/UserRole"
+          $ref: "#/components/schemas/OrganizationMembershipRole"
+          description: Active-organization membership role when available.
         createdAt:
           type: string
           format: date-time
+        isSuperadmin:
+          type: boolean
+        activeOrganizationId:
+          type: string
+          format: uuid
         token:
           type: string
           description: Access JWT
@@ -1035,6 +1337,78 @@ components:
           description: New access JWT
       additionalProperties: false
 
+    SetActiveOrganizationRequest:
+      type: object
+      required: [organizationId]
+      properties:
+        organizationId:
+          type: string
+          format: uuid
+      additionalProperties: false
+
+    OrganizationMembershipRole:
+      type: string
+      enum: [org_admin, tutor, parent]
+
+    Organization:
+      type: object
+      required: [id, name, slug, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+
+    CreateOrganizationRequest:
+      type: object
+      required: [name, slug]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 256
+        slug:
+          type: string
+          minLength: 3
+          maxLength: 256
+          pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+      additionalProperties: false
+
+    OrganizationMembership:
+      type: object
+      required: [organizationId, userId, role, createdAt]
+      properties:
+        organizationId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        role:
+          $ref: "#/components/schemas/OrganizationMembershipRole"
+        createdAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+
+    AddOrganizationMemberRequest:
+      type: object
+      required: [userId, role]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        role:
+          $ref: "#/components/schemas/OrganizationMembershipRole"
+      additionalProperties: false
+
     UpdateUserRequest:
       type: object
       minProperties: 1
@@ -1043,7 +1417,7 @@ components:
           type: string
           format: email
         role:
-          $ref: "#/components/schemas/UserRole"
+          $ref: "#/components/schemas/OrganizationMembershipRole"
       additionalProperties: false
 
     CreateSubjectRequest:
@@ -1054,6 +1428,11 @@ components:
           type: string
           minLength: 1
           maxLength: 255
+        organizationId:
+          oneOf:
+            - type: string
+              format: uuid
+            - type: "null"
       additionalProperties: false
 
     Subject:
@@ -1071,6 +1450,7 @@ components:
       type: object
       required:
         - id
+        - organizationId
         - parentId
         - tutorId
         - firstName
@@ -1078,6 +1458,9 @@ components:
         - dateOfBirth
       properties:
         id:
+          type: string
+          format: uuid
+        organizationId:
           type: string
           format: uuid
         parentId:
@@ -1297,6 +1680,7 @@ components:
         - id
         - createdAt
         - updatedAt
+        - organizationId
         - studentId
         - tutorId
         - subjectId
@@ -1314,6 +1698,9 @@ components:
         updatedAt:
           type: string
           format: date-time
+        organizationId:
+          type: string
+          format: uuid
         studentId:
           type: string
           format: uuid
@@ -1356,4 +1743,26 @@ components:
         endsAt:
           type: string
           format: date-time
+      additionalProperties: false
+
+    UpdateLessonRequest:
+      type: object
+      minProperties: 1
+      properties:
+        tutorId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        notes:
+          oneOf:
+            - type: string
+            - type: "null"
       additionalProperties: false
