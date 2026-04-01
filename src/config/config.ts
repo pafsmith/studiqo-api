@@ -8,6 +8,7 @@ type Config = {
   db: DBConfig;
   jwt: JWTConfig;
   auth: AuthConfig;
+  sentry: SentryConfig;
 };
 
 type APIConfig = {
@@ -35,6 +36,16 @@ type AuthConfig = {
   cookiePath: string;
 };
 
+type SentryConfig = {
+  enabled: boolean;
+  dsn?: string;
+  environment: string;
+  tracesSampleRate: number;
+  sendDefaultPii: boolean;
+  release?: string;
+  debugRouteEnabled: boolean;
+};
+
 function envOrThrow(key: string) {
   const value = process.env[key];
   if (!value) {
@@ -59,6 +70,19 @@ function numberEnvOrDefault(key: string, defaultValue: number): number {
   const parsed = Number(value);
   if (Number.isNaN(parsed)) {
     throw new Error(`Environment variable ${key} must be a number`);
+  }
+  return parsed;
+}
+
+function numberEnvInRangeOrDefault(
+  key: string,
+  defaultValue: number,
+  min: number,
+  max: number,
+): number {
+  const parsed = numberEnvOrDefault(key, defaultValue);
+  if (parsed < min || parsed > max) {
+    throw new Error(`Environment variable ${key} must be between ${min} and ${max}`);
   }
   return parsed;
 }
@@ -101,6 +125,18 @@ const migrationConfig: MigrationConfig = {
   migrationsFolder: "./src/db/migrations",
 };
 
+const sentryDsn = process.env.SENTRY_DSN;
+const sentryEnabled = booleanEnvOrDefault(
+  "SENTRY_ENABLED",
+  process.env.NODE_ENV !== "test" && Boolean(sentryDsn),
+);
+
+if (sentryEnabled && !sentryDsn) {
+  throw new Error(
+    "Environment variable SENTRY_DSN is required when SENTRY_ENABLED=true",
+  );
+}
+
 export const config: Config = {
   api: {
     port: Number(envOrThrow("PORT")),
@@ -132,5 +168,17 @@ export const config: Config = {
     cookieSecure: booleanEnvOrDefault("AUTH_COOKIE_SECURE", false),
     cookieSameSite: sameSiteEnvOrDefault("AUTH_COOKIE_SAME_SITE", "lax"),
     cookiePath: envOrDefault("AUTH_COOKIE_PATH", "/api/v1/auth"),
+  },
+  sentry: {
+    enabled: sentryEnabled,
+    dsn: sentryDsn,
+    environment: envOrDefault(
+      "SENTRY_ENVIRONMENT",
+      process.env.NODE_ENV ?? "development",
+    ),
+    tracesSampleRate: numberEnvInRangeOrDefault("SENTRY_TRACES_SAMPLE_RATE", 0.1, 0, 1),
+    sendDefaultPii: booleanEnvOrDefault("SENTRY_SEND_DEFAULT_PII", false),
+    release: process.env.SENTRY_RELEASE,
+    debugRouteEnabled: booleanEnvOrDefault("SENTRY_DEBUG_ROUTE_ENABLED", false),
   },
 };
