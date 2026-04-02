@@ -18,6 +18,10 @@ import {
   toOrganizationResponse,
 } from "./organizations.mapper.js";
 import type {
+  OrganizationInvitation,
+  OrganizationMembershipRole,
+} from "../../db/schema.js";
+import type {
   AddOrganizationMemberRequest,
   CreateOrganizationRequest,
   CreateOrganizationInvitationRequest,
@@ -41,6 +45,51 @@ function ensureOrganizationAdmin(req: Request, organizationId: string): void {
   ) {
     throw new UserForbiddenError("Organization admin access required");
   }
+}
+
+function invitationExpiresAt(): Date {
+  return new Date(Date.now() + config.invitations.expiresInHours * 60 * 60 * 1000);
+}
+
+async function createAndSendInvitation(input: {
+  organizationId: string;
+  organizationName: string;
+  organizationSlug: string;
+  inviterId: string;
+  inviterEmail: string;
+  inviteeEmail: string;
+  role: OrganizationMembershipRole;
+}): Promise<OrganizationInvitation> {
+  const token = createInvitationToken();
+  const tokenHash = hashInvitationToken(token);
+  const expiresAt = invitationExpiresAt();
+
+  const invitation = await invitationsRepository.createInvitation({
+    organizationId: input.organizationId,
+    invitedByUserId: input.inviterId,
+    email: input.inviteeEmail,
+    role: input.role,
+    tokenHash,
+    expiresAt,
+  });
+
+  try {
+    await invitationsEmailService.sendParentInvitationEmail({
+      invitationId: invitation.id,
+      inviteeEmail: invitation.email,
+      inviterEmail: input.inviterEmail,
+      organizationId: input.organizationId,
+      organizationName: input.organizationName,
+      organizationSlug: input.organizationSlug,
+      token,
+      expiresAt,
+    });
+  } catch {
+    await invitationsRepository.revokeInvitation(invitation.id);
+    throw new BadRequestError("Failed to send invitation email");
+  }
+
+  return invitation;
 }
 
 export const organizationsService = {
@@ -155,37 +204,101 @@ export const organizationsService = {
       );
     }
 
-    const token = createInvitationToken();
-    const tokenHash = hashInvitationToken(token);
-    const expiresAt = new Date(
-      Date.now() + config.invitations.expiresInHours * 60 * 60 * 1000,
-    );
-
-    const invitation = await invitationsRepository.createInvitation({
+    const invitation = await createAndSendInvitation({
       organizationId,
-      invitedByUserId: actor.id,
-      email,
+      organizationName: organization.name,
+      organizationSlug: organization.slug,
+      inviterId: actor.id,
+      inviterEmail: actor.email,
+      inviteeEmail: email,
       role: "parent",
-      tokenHash,
-      expiresAt,
     });
 
-    try {
-      await invitationsEmailService.sendParentInvitationEmail({
-        invitationId: invitation.id,
-        inviteeEmail: invitation.email,
-        inviterEmail: actor.email,
-        organizationId,
-        organizationName: organization.name,
-        organizationSlug: organization.slug,
-        token,
-        expiresAt,
-      });
-    } catch {
-      await invitationsRepository.revokeInvitation(invitation.id);
-      throw new BadRequestError("Failed to send invitation email");
+    return toOrganizationInvitationResponse(invitation);
+  },
+
+  listOrganizationInvitations: async (
+    req: Request,
+    organizationId: string,
+  ): Promise<OrganizationInvitationResponse[]> => {
+    ensureOrganizationAdmin(req, organizationId);
+    const organization =
+      await organizationsRepository.findOrganizationById(organizationId);
+    if (!organization) {
+      throw new NotFoundError("Organization not found");
     }
 
-    return toOrganizationInvitationResponse(invitation);
+    const rows =
+      await invitationsRepository.listInvitationsForOrganization(organizationId);
+    return rows.map(toOrganizationInvitationResponse);
+  },
+
+  resendOrganizationInvitation: async (
+    req: Request,
+    organizationId: string,
+    invitationId: string,
+  ): Promise<OrganizationInvitationResponse> => {
+    const actor = requireUser(req);
+    ensureOrganizationAdmin(req, organizationId);
+
+    const organization =
+      await organizationsRepository.findOrganizationById(organizationId);
+    if (!organization) {
+      throw new NotFoundError("Organization not found");
+    }
+
+    const invitation = await invitationsRepository.findInvitationById(invitationId);
+    if (!invitation || invitation.organizationId !== organizationId) {
+      throw new NotFoundError("Invitation not found");
+    }
+    if (invitation.acceptedAt) {
+      throw new ConflictError("Invitation already accepted");
+    }
+    if (invitation.revokedAt) {
+      throw new BadRequestError("Invitation already revoked");
+    }
+
+    const nextInvitation = await createAndSendInvitation({
+      organizationId,
+      organizationName: organization.name,
+      organizationSlug: organization.slug,
+      inviterId: actor.id,
+      inviterEmail: actor.email,
+      inviteeEmail: invitation.email,
+      role: invitation.role,
+    });
+
+    await invitationsRepository.revokeInvitation(invitation.id);
+    return toOrganizationInvitationResponse(nextInvitation);
+  },
+
+  revokeOrganizationInvitation: async (
+    req: Request,
+    organizationId: string,
+    invitationId: string,
+  ): Promise<OrganizationInvitationResponse> => {
+    ensureOrganizationAdmin(req, organizationId);
+    const organization =
+      await organizationsRepository.findOrganizationById(organizationId);
+    if (!organization) {
+      throw new NotFoundError("Organization not found");
+    }
+
+    const invitation = await invitationsRepository.findInvitationById(invitationId);
+    if (!invitation || invitation.organizationId !== organizationId) {
+      throw new NotFoundError("Invitation not found");
+    }
+    if (invitation.acceptedAt) {
+      throw new ConflictError("Cannot revoke an accepted invitation");
+    }
+    if (invitation.revokedAt) {
+      return toOrganizationInvitationResponse(invitation);
+    }
+
+    const revoked = await invitationsRepository.revokeInvitation(invitationId);
+    if (!revoked) {
+      throw new NotFoundError("Invitation not found");
+    }
+    return toOrganizationInvitationResponse(revoked);
   },
 };

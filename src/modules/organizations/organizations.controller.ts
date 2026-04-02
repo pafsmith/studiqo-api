@@ -62,4 +62,54 @@ export const organizationsController = {
       next(error);
     }
   },
+
+  listOrganizationInvitations: async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const invitations = await organizationsService.listOrganizationInvitations(
+        req,
+        String(req.params.organizationId),
+      );
+      respondWithJSON(res, 200, invitations);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  resendOrganizationInvitation: async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const invitation = await organizationsService.resendOrganizationInvitation(
+        req,
+        String(req.params.organizationId),
+        String(req.params.invitationId),
+      );
+      respondWithJSON(res, 200, invitation);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  revokeOrganizationInvitation: async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const invitation = await organizationsService.revokeOrganizationInvitation(
+        req,
+        String(req.params.organizationId),
+        String(req.params.invitationId),
+      );
+      respondWithJSON(res, 200, invitation);
+    } catch (error) {
+      next(error);
+    }
+  },
 };

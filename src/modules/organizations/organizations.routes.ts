@@ -6,7 +6,10 @@ import {
   addOrganizationMemberSchema,
   createOrganizationSchema,
   createOrganizationInvitationSchema,
+  listOrganizationInvitationsSchema,
   listOrganizationMembersSchema,
+  resendOrganizationInvitationSchema,
+  revokeOrganizationInvitationSchema,
 } from "./organizations.schema.js";
 
 export const organizationsRoutes = Router();
@@ -33,4 +36,19 @@ organizationsRoutes.post(
   "/:organizationId/invites",
   validate(createOrganizationInvitationSchema),
   organizationsController.createOrganizationInvitation,
+);
+organizationsRoutes.get(
+  "/:organizationId/invites",
+  validate(listOrganizationInvitationsSchema),
+  organizationsController.listOrganizationInvitations,
+);
+organizationsRoutes.post(
+  "/:organizationId/invites/:invitationId/resend",
+  validate(resendOrganizationInvitationSchema),
+  organizationsController.resendOrganizationInvitation,
+);
+organizationsRoutes.post(
+  "/:organizationId/invites/:invitationId/revoke",
+  validate(revokeOrganizationInvitationSchema),
+  organizationsController.revokeOrganizationInvitation,
 );
