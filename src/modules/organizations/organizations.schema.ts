@@ -33,3 +33,14 @@ export const listOrganizationMembersSchema = z.object({
     organizationId: z.string().uuid(),
   }),
 });
+
+export const createOrganizationInvitationSchema = z.object({
+  params: z.object({
+    organizationId: z.string().uuid(),
+  }),
+  body: z
+    .object({
+      email: z.string().trim().email().min(1).max(256),
+    })
+    .strict(),
+});
