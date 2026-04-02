@@ -28,7 +28,10 @@ import type {
 import { invitationsRepository } from "../invitations/invitations.repository.js";
 import { invitationsEmailService } from "../invitations/invitations.email.js";
 import { config } from "../../config/config.js";
-import crypto from "crypto";
+import {
+  createInvitationToken,
+  hashInvitationToken,
+} from "../invitations/invitations.token.js";
 
 function ensureOrganizationAdmin(req: Request, organizationId: string): void {
   const context = requireOrganizationContext(req);
@@ -38,14 +41,6 @@ function ensureOrganizationAdmin(req: Request, organizationId: string): void {
   ) {
     throw new UserForbiddenError("Organization admin access required");
   }
-}
-
-function createInviteToken(): string {
-  return crypto.randomBytes(32).toString("hex");
-}
-
-function hashInviteToken(token: string): string {
-  return crypto.createHash("sha256").update(token).digest("hex");
 }
 
 export const organizationsService = {
@@ -160,8 +155,8 @@ export const organizationsService = {
       );
     }
 
-    const token = createInviteToken();
-    const tokenHash = hashInviteToken(token);
+    const token = createInvitationToken();
+    const tokenHash = hashInvitationToken(token);
     const expiresAt = new Date(
       Date.now() + config.invitations.expiresInHours * 60 * 60 * 1000,
     );
