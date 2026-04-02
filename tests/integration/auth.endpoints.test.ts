@@ -151,6 +151,26 @@ describe("POST /api/v1/auth/login", () => {
     expect(res.body.error).toMatch(/invalid email or password/i);
   });
 
+  it("returns 200 with no active organization for users without memberships", async () => {
+    const scopedEmail = `login-no-org-${runId}@example.com`;
+    const register = await request(app)
+      .post(paths.register)
+      .send({ email: scopedEmail, password: validPassword })
+      .expect(201);
+    userId = register.body.id;
+
+    const res = await request(app)
+      .post(paths.login)
+      .send({ email: scopedEmail, password: validPassword })
+      .expect(200)
+      .expect("Content-Type", /json/);
+
+    expect(res.body.email).toBe(scopedEmail);
+    expect(res.body.role).toBeUndefined();
+    expect(res.body.activeOrganizationId).toBeUndefined();
+    expect(typeof res.body.token).toBe("string");
+  });
+
   it("returns 400 when body fails validation", async () => {
     const res = await request(app)
       .post(paths.login)
@@ -196,6 +216,34 @@ describe("GET /api/v1/auth/me", () => {
       role: "org_admin",
     });
     expect(res.body.createdAt).toBeDefined();
+  });
+
+  it("returns 200 with no organization context when user has no memberships", async () => {
+    const scopedEmail = `me-no-org-${runId}@example.com`;
+    const register = await request(app)
+      .post(paths.register)
+      .send({ email: scopedEmail, password: validPassword })
+      .expect(201);
+    userId = register.body.id;
+
+    const login = await request(app)
+      .post(paths.login)
+      .send({ email: scopedEmail, password: validPassword })
+      .expect(200);
+
+    const res = await request(app)
+      .get(paths.me)
+      .set("Authorization", `Bearer ${login.body.token}`)
+      .expect(200)
+      .expect("Content-Type", /json/);
+
+    expect(res.body).toMatchObject({
+      id: register.body.id,
+      email: scopedEmail,
+      isSuperadmin: false,
+    });
+    expect(res.body.role).toBeUndefined();
+    expect(res.body.activeOrganizationId).toBeUndefined();
   });
 });
 

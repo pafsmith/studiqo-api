@@ -67,6 +67,8 @@ export async function registerUser(
   email: string,
   options?: RegisterHelperOptions,
 ): Promise<RegisterResponseBody> {
+  // Most existing integration suites assume an admin-scoped actor after registration.
+  // Keep that behavior in test helpers while the production register flow remains account-only.
   const bootstrapAdminOrganization = options?.bootstrapAdminOrganization ?? true;
   const res = await request(app)
     .post(paths.register)
