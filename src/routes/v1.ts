@@ -5,6 +5,7 @@ import { usersRoutes } from "../modules/users/users.routes.js";
 import { subjectsRoutes } from "../modules/subjects/subjects.routes.js";
 import { lessonsRoutes } from "../modules/lessons/lessons.routes.js";
 import { organizationsRoutes } from "../modules/organizations/organizations.routes.js";
+import { invitationsRoutes } from "../modules/invitations/invitations.routes.js";
 
 export const v1Router = Router();
 
@@ -18,3 +19,4 @@ v1Router.use("/users", usersRoutes);
 v1Router.use("/subjects", subjectsRoutes);
 v1Router.use("/lessons", lessonsRoutes);
 v1Router.use("/organizations", organizationsRoutes);
+v1Router.use("/invites", invitationsRoutes);
