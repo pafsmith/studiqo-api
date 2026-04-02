@@ -23,3 +23,19 @@ export type AddOrganizationMemberRequest = {
   userId: string;
   role: OrganizationMembershipRole;
 };
+
+export type CreateOrganizationInvitationRequest = {
+  email: string;
+};
+
+export type OrganizationInvitationResponse = {
+  id: string;
+  organizationId: string;
+  invitedByUserId: string | null;
+  email: string;
+  role: OrganizationMembershipRole;
+  createdAt: Date;
+  expiresAt: Date;
+  acceptedAt: Date | null;
+  revokedAt: Date | null;
+};
