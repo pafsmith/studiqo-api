@@ -27,7 +27,10 @@ vi.mock("../../src/modules/organizations/organizations.repository.js", () => ({
 vi.mock("../../src/modules/invitations/invitations.repository.js", () => ({
   invitationsRepository: {
     findLatestActiveInvitationForEmailAndRole: vi.fn(),
+    findInvitationById: vi.fn(),
+    listInvitationsForOrganization: vi.fn(),
     createInvitation: vi.fn(),
+    markInvitationAccepted: vi.fn(),
     revokeInvitation: vi.fn(),
   },
 }));
@@ -73,7 +76,10 @@ describe("organizationsService", () => {
     vi.mocked(
       invitationsRepository.findLatestActiveInvitationForEmailAndRole,
     ).mockReset();
+    vi.mocked(invitationsRepository.findInvitationById).mockReset();
+    vi.mocked(invitationsRepository.listInvitationsForOrganization).mockReset();
     vi.mocked(invitationsRepository.createInvitation).mockReset();
+    vi.mocked(invitationsRepository.markInvitationAccepted).mockReset();
     vi.mocked(invitationsRepository.revokeInvitation).mockReset();
     vi.mocked(invitationsEmailService.sendParentInvitationEmail).mockReset();
   });
@@ -313,5 +319,174 @@ describe("organizationsService", () => {
         { email: "parent@example.com" },
       ),
     ).rejects.toThrow(ConflictError);
+  });
+
+  it("lists invitations for organization admin", async () => {
+    const now = new Date();
+    vi.mocked(organizationsRepository.findOrganizationById).mockResolvedValue({
+      id: "org-1",
+      name: "Center One",
+      slug: "center-one",
+      createdAt: now,
+      updatedAt: now,
+    });
+    vi.mocked(invitationsRepository.listInvitationsForOrganization).mockResolvedValue([
+      {
+        id: "invite-1",
+        organizationId: "org-1",
+        invitedByUserId: "admin-1",
+        acceptedByUserId: null,
+        email: "parent@example.com",
+        role: "parent",
+        tokenHash: "hash",
+        expiresAt: new Date(Date.now() + 3600_000),
+        acceptedAt: null,
+        revokedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    const out = await organizationsService.listOrganizationInvitations(
+      reqWithUser({
+        id: "admin-1",
+        email: "admin@example.com",
+        hasedPassword: "h",
+        role: "admin",
+        createdAt: now,
+        updatedAt: now,
+      }),
+      "org-1",
+    );
+
+    expect(out).toHaveLength(1);
+    expect(out[0]?.id).toBe("invite-1");
+  });
+
+  it("resends invitation by creating a new invite and revoking old", async () => {
+    const now = new Date();
+    vi.mocked(organizationsRepository.findOrganizationById).mockResolvedValue({
+      id: "org-1",
+      name: "Center One",
+      slug: "center-one",
+      createdAt: now,
+      updatedAt: now,
+    });
+    vi.mocked(invitationsRepository.findInvitationById).mockResolvedValue({
+      id: "invite-old",
+      organizationId: "org-1",
+      invitedByUserId: "admin-1",
+      acceptedByUserId: null,
+      email: "parent@example.com",
+      role: "parent",
+      tokenHash: "hash-old",
+      expiresAt: new Date(Date.now() - 1000),
+      acceptedAt: null,
+      revokedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    vi.mocked(invitationsRepository.createInvitation).mockResolvedValue({
+      id: "invite-new",
+      organizationId: "org-1",
+      invitedByUserId: "admin-1",
+      acceptedByUserId: null,
+      email: "parent@example.com",
+      role: "parent",
+      tokenHash: "hash-new",
+      expiresAt: new Date(Date.now() + 3600_000),
+      acceptedAt: null,
+      revokedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    vi.mocked(invitationsEmailService.sendParentInvitationEmail).mockResolvedValue(
+      undefined,
+    );
+    vi.mocked(invitationsRepository.revokeInvitation).mockResolvedValue({
+      id: "invite-old",
+      organizationId: "org-1",
+      invitedByUserId: "admin-1",
+      acceptedByUserId: null,
+      email: "parent@example.com",
+      role: "parent",
+      tokenHash: "hash-old",
+      expiresAt: new Date(Date.now() - 1000),
+      acceptedAt: null,
+      revokedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const out = await organizationsService.resendOrganizationInvitation(
+      reqWithUser({
+        id: "admin-1",
+        email: "admin@example.com",
+        hasedPassword: "h",
+        role: "admin",
+        createdAt: now,
+        updatedAt: now,
+      }),
+      "org-1",
+      "invite-old",
+    );
+
+    expect(out.id).toBe("invite-new");
+    expect(invitationsRepository.revokeInvitation).toHaveBeenCalledWith("invite-old");
+  });
+
+  it("revokes invitation for org admin", async () => {
+    const now = new Date();
+    vi.mocked(organizationsRepository.findOrganizationById).mockResolvedValue({
+      id: "org-1",
+      name: "Center One",
+      slug: "center-one",
+      createdAt: now,
+      updatedAt: now,
+    });
+    vi.mocked(invitationsRepository.findInvitationById).mockResolvedValue({
+      id: "invite-1",
+      organizationId: "org-1",
+      invitedByUserId: "admin-1",
+      acceptedByUserId: null,
+      email: "parent@example.com",
+      role: "parent",
+      tokenHash: "hash",
+      expiresAt: new Date(Date.now() + 3600_000),
+      acceptedAt: null,
+      revokedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    vi.mocked(invitationsRepository.revokeInvitation).mockResolvedValue({
+      id: "invite-1",
+      organizationId: "org-1",
+      invitedByUserId: "admin-1",
+      acceptedByUserId: null,
+      email: "parent@example.com",
+      role: "parent",
+      tokenHash: "hash",
+      expiresAt: new Date(Date.now() + 3600_000),
+      acceptedAt: null,
+      revokedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const out = await organizationsService.revokeOrganizationInvitation(
+      reqWithUser({
+        id: "admin-1",
+        email: "admin@example.com",
+        hasedPassword: "h",
+        role: "admin",
+        createdAt: now,
+        updatedAt: now,
+      }),
+      "org-1",
+      "invite-1",
+    );
+
+    expect(out.id).toBe("invite-1");
+    expect(out.revokedAt).toBeTruthy();
   });
 });
