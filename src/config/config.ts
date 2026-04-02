@@ -8,6 +8,9 @@ type Config = {
   db: DBConfig;
   jwt: JWTConfig;
   auth: AuthConfig;
+  app: AppConfig;
+  invitations: InvitationsConfig;
+  resend: ResendConfig;
   sentry: SentryConfig;
 };
 
@@ -34,6 +37,21 @@ type AuthConfig = {
   cookieSecure: boolean;
   cookieSameSite: "lax" | "strict" | "none";
   cookiePath: string;
+};
+
+type AppConfig = {
+  publicProtocol: "http" | "https";
+  baseDomain: string;
+};
+
+type InvitationsConfig = {
+  expiresInHours: number;
+  acceptPath: string;
+};
+
+type ResendConfig = {
+  apiKey?: string;
+  fromEmail?: string;
 };
 
 type SentryConfig = {
@@ -121,6 +139,21 @@ function sameSiteEnvOrDefault(
   throw new Error(`Environment variable ${key} must be one of lax, strict, none`);
 }
 
+function protocolEnvOrDefault(
+  key: string,
+  defaultValue: "http" | "https",
+): "http" | "https" {
+  const value = process.env[key];
+  if (!value) {
+    return defaultValue;
+  }
+  const normalized = value.toLowerCase();
+  if (normalized === "http" || normalized === "https") {
+    return normalized;
+  }
+  throw new Error(`Environment variable ${key} must be one of http, https`);
+}
+
 const migrationConfig: MigrationConfig = {
   migrationsFolder: "./src/db/migrations",
 };
@@ -168,6 +201,18 @@ export const config: Config = {
     cookieSecure: booleanEnvOrDefault("AUTH_COOKIE_SECURE", false),
     cookieSameSite: sameSiteEnvOrDefault("AUTH_COOKIE_SAME_SITE", "lax"),
     cookiePath: envOrDefault("AUTH_COOKIE_PATH", "/api/v1/auth"),
+  },
+  app: {
+    publicProtocol: protocolEnvOrDefault("APP_PUBLIC_PROTOCOL", "https"),
+    baseDomain: envOrDefault("APP_BASE_DOMAIN", "studiqo.io"),
+  },
+  invitations: {
+    expiresInHours: numberEnvOrDefault("INVITATION_EXPIRES_IN_HOURS", 168),
+    acceptPath: envOrDefault("INVITATION_ACCEPT_PATH", "/invite"),
+  },
+  resend: {
+    apiKey: process.env.RESEND_API_KEY,
+    fromEmail: process.env.RESEND_FROM_EMAIL,
   },
   sentry: {
     enabled: sentryEnabled,
