@@ -111,8 +111,6 @@ describe("authService registerUser", () => {
   beforeEach(() => {
     vi.mocked(usersRepository.getUserByEmail).mockReset();
     vi.mocked(usersRepository.createUser).mockReset();
-    vi.mocked(organizationsRepository.findOrganizationBySlug).mockReset();
-    vi.mocked(organizationsRepository.createMembership).mockReset();
   });
 
   it("rejects duplicate email", async () => {
@@ -143,20 +141,6 @@ describe("authService registerUser", () => {
       createdAt,
       updatedAt: createdAt,
     });
-    vi.mocked(organizationsRepository.findOrganizationBySlug).mockResolvedValue({
-      id: "org-1",
-      name: "Default Organization",
-      slug: "default-organization",
-      createdAt,
-      updatedAt: createdAt,
-    });
-    vi.mocked(organizationsRepository.createMembership).mockResolvedValue({
-      organizationId: "org-1",
-      userId: "new-id",
-      role: "org_admin",
-      createdAt,
-      updatedAt: createdAt,
-    });
 
     const result = await authService.registerUser({
       email: "User@Example.com",
@@ -173,10 +157,10 @@ describe("authService registerUser", () => {
     expect(result).toEqual({
       id: "new-id",
       email: "User@Example.com",
-      role: "org_admin",
+      role: undefined,
       createdAt,
       isSuperadmin: false,
-      activeOrganizationId: "org-1",
+      activeOrganizationId: undefined,
     });
   });
 });

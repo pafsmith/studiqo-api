@@ -154,18 +154,6 @@ export const authService = {
     return membership?.role;
   },
 
-  ensureDefaultOrganization: async () => {
-    const existing =
-      await organizationsRepository.findOrganizationBySlug("default-organization");
-    if (existing) {
-      return existing;
-    }
-    return organizationsRepository.createOrganization({
-      name: "Default Organization",
-      slug: "default-organization",
-    });
-  },
-
   registerUser: async (user: RegisterUserRequest): Promise<RegisterUserResponse> => {
     const email = user.email.trim().toLowerCase();
 
@@ -183,13 +171,7 @@ export const authService = {
     if (!newUser) {
       throw new BadRequestError("Failed to create user");
     }
-    const organization = await authService.ensureDefaultOrganization();
-    await organizationsRepository.createMembership({
-      organizationId: organization.id,
-      userId: newUser.id,
-      role: "org_admin",
-    });
-    return toRegisterUserResponse(newUser, organization.id, "org_admin");
+    return toRegisterUserResponse(newUser);
   },
   loginUser: async (user: LoginUserRequest): Promise<LoginUserResponse> => {
     const email = user.email.trim().toLowerCase();
