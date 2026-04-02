@@ -42,7 +42,10 @@ async function resolveOrganizationContext(
   }
 
   if (memberships.length === 0) {
-    throw new UserForbiddenError("No organization membership found for user");
+    if (requestedOrganizationId !== undefined) {
+      throw new UserForbiddenError("You do not belong to this organization");
+    }
+    return;
   }
 
   if (requestedOrganizationId !== undefined) {
