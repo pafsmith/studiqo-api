@@ -44,3 +44,23 @@ export const createOrganizationInvitationSchema = z.object({
     })
     .strict(),
 });
+
+export const listOrganizationInvitationsSchema = z.object({
+  params: z.object({
+    organizationId: z.string().uuid(),
+  }),
+});
+
+export const resendOrganizationInvitationSchema = z.object({
+  params: z.object({
+    organizationId: z.string().uuid(),
+    invitationId: z.string().uuid(),
+  }),
+});
+
+export const revokeOrganizationInvitationSchema = z.object({
+  params: z.object({
+    organizationId: z.string().uuid(),
+    invitationId: z.string().uuid(),
+  }),
+});

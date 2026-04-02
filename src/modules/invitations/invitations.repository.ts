@@ -61,6 +61,30 @@ export const invitationsRepository = {
     return row;
   },
 
+  findInvitationById: async (
+    invitationId: string,
+  ): Promise<OrganizationInvitation | undefined> => {
+    const [row] = await db
+      .select()
+      .from(organizationInvitations)
+      .where(eq(organizationInvitations.id, invitationId))
+      .limit(1);
+    return row;
+  },
+
+  listInvitationsForOrganization: async (
+    organizationId: string,
+  ): Promise<OrganizationInvitation[]> => {
+    return db
+      .select()
+      .from(organizationInvitations)
+      .where(eq(organizationInvitations.organizationId, organizationId))
+      .orderBy(
+        desc(organizationInvitations.createdAt),
+        desc(organizationInvitations.id),
+      );
+  },
+
   markInvitationAccepted: async (
     invitationId: string,
     acceptedByUserId: string,
