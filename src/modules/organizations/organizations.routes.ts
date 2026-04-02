@@ -5,6 +5,7 @@ import { organizationsController } from "./organizations.controller.js";
 import {
   addOrganizationMemberSchema,
   createOrganizationSchema,
+  createOrganizationInvitationSchema,
   listOrganizationMembersSchema,
 } from "./organizations.schema.js";
 
@@ -27,4 +28,9 @@ organizationsRoutes.post(
   "/:organizationId/members",
   validate(addOrganizationMemberSchema),
   organizationsController.addOrganizationMember,
+);
+organizationsRoutes.post(
+  "/:organizationId/invites",
+  validate(createOrganizationInvitationSchema),
+  organizationsController.createOrganizationInvitation,
 );

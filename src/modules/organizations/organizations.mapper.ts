@@ -1,5 +1,10 @@
-import type { Organization, OrganizationMembership } from "../../db/schema.js";
 import type {
+  Organization,
+  OrganizationInvitation,
+  OrganizationMembership,
+} from "../../db/schema.js";
+import type {
+  OrganizationInvitationResponse,
   OrganizationMembershipResponse,
   OrganizationResponse,
 } from "./organizations.types.js";
@@ -21,5 +26,21 @@ export function toOrganizationMembershipResponse(
     userId: row.userId,
     role: row.role,
     createdAt: row.createdAt,
+  };
+}
+
+export function toOrganizationInvitationResponse(
+  row: OrganizationInvitation,
+): OrganizationInvitationResponse {
+  return {
+    id: row.id,
+    organizationId: row.organizationId,
+    invitedByUserId: row.invitedByUserId,
+    email: row.email,
+    role: row.role,
+    createdAt: row.createdAt,
+    expiresAt: row.expiresAt,
+    acceptedAt: row.acceptedAt,
+    revokedAt: row.revokedAt,
   };
 }

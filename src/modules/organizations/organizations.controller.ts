@@ -45,4 +45,21 @@ export const organizationsController = {
       next(error);
     }
   },
+
+  createOrganizationInvitation: async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const invitation = await organizationsService.createParentInvitation(
+        req,
+        String(req.params.organizationId),
+        req.body,
+      );
+      respondWithJSON(res, 201, invitation);
+    } catch (error) {
+      next(error);
+    }
+  },
 };

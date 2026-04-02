@@ -1,6 +1,7 @@
 import { Request } from "express";
 import {
   BadRequestError,
+  ConflictError,
   NotFoundError,
   UserForbiddenError,
 } from "../../common/errors/errors.js";
@@ -12,15 +13,40 @@ import {
 import { usersRepository } from "../users/users.repository.js";
 import { organizationsRepository } from "./organizations.repository.js";
 import {
+  toOrganizationInvitationResponse,
   toOrganizationMembershipResponse,
   toOrganizationResponse,
 } from "./organizations.mapper.js";
 import type {
   AddOrganizationMemberRequest,
   CreateOrganizationRequest,
+  CreateOrganizationInvitationRequest,
+  OrganizationInvitationResponse,
   OrganizationMembershipResponse,
   OrganizationResponse,
 } from "./organizations.types.js";
+import { invitationsRepository } from "../invitations/invitations.repository.js";
+import { invitationsEmailService } from "../invitations/invitations.email.js";
+import { config } from "../../config/config.js";
+import crypto from "crypto";
+
+function ensureOrganizationAdmin(req: Request, organizationId: string): void {
+  const context = requireOrganizationContext(req);
+  if (
+    context.organizationId !== organizationId ||
+    context.organizationRole !== "org_admin"
+  ) {
+    throw new UserForbiddenError("Organization admin access required");
+  }
+}
+
+function createInviteToken(): string {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+function hashInviteToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
 
 export const organizationsService = {
   createOrganization: async (
@@ -105,5 +131,66 @@ export const organizationsService = {
     const rows =
       await organizationsRepository.listMembershipsForOrganization(organizationId);
     return rows.map(toOrganizationMembershipResponse);
+  },
+
+  createParentInvitation: async (
+    req: Request,
+    organizationId: string,
+    body: CreateOrganizationInvitationRequest,
+  ): Promise<OrganizationInvitationResponse> => {
+    const actor = requireUser(req);
+    ensureOrganizationAdmin(req, organizationId);
+
+    const organization =
+      await organizationsRepository.findOrganizationById(organizationId);
+    if (!organization) {
+      throw new NotFoundError("Organization not found");
+    }
+
+    const email = body.email.trim().toLowerCase();
+    const activeInvite =
+      await invitationsRepository.findLatestActiveInvitationForEmailAndRole(
+        organizationId,
+        email,
+        "parent",
+      );
+    if (activeInvite) {
+      throw new ConflictError(
+        "An active parent invitation already exists for this email",
+      );
+    }
+
+    const token = createInviteToken();
+    const tokenHash = hashInviteToken(token);
+    const expiresAt = new Date(
+      Date.now() + config.invitations.expiresInHours * 60 * 60 * 1000,
+    );
+
+    const invitation = await invitationsRepository.createInvitation({
+      organizationId,
+      invitedByUserId: actor.id,
+      email,
+      role: "parent",
+      tokenHash,
+      expiresAt,
+    });
+
+    try {
+      await invitationsEmailService.sendParentInvitationEmail({
+        invitationId: invitation.id,
+        inviteeEmail: invitation.email,
+        inviterEmail: actor.email,
+        organizationId,
+        organizationName: organization.name,
+        organizationSlug: organization.slug,
+        token,
+        expiresAt,
+      });
+    } catch {
+      await invitationsRepository.revokeInvitation(invitation.id);
+      throw new BadRequestError("Failed to send invitation email");
+    }
+
+    return toOrganizationInvitationResponse(invitation);
   },
 };
