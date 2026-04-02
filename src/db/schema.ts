@@ -96,6 +96,46 @@ export const refreshTokens = pgTable("refresh_tokens", {
 
 export type NewRefreshToken = typeof refreshTokens.$inferInsert;
 
+export const organizationInvitations = pgTable(
+  "organization_invitations",
+  {
+    id: uuid("id").primaryKey().defaultRandom().notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    organizationId: uuid("organization_id")
+      .references(() => organizations.id, { onDelete: "cascade" })
+      .notNull(),
+    invitedByUserId: uuid("invited_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    acceptedByUserId: uuid("accepted_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    email: varchar("email", { length: 256 }).notNull(),
+    role: organizationMembershipRoleEnum("role").notNull(),
+    tokenHash: varchar("token_hash", { length: 128 }).unique().notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    acceptedAt: timestamp("accepted_at"),
+    revokedAt: timestamp("revoked_at"),
+  },
+  (table) => [
+    index("organization_invitations_organization_id_idx").on(table.organizationId),
+    index("organization_invitations_email_idx").on(table.email),
+    index("organization_invitations_organization_id_email_role_idx").on(
+      table.organizationId,
+      table.email,
+      table.role,
+    ),
+    index("organization_invitations_expires_at_idx").on(table.expiresAt),
+  ],
+);
+
+export type NewOrganizationInvitation = typeof organizationInvitations.$inferInsert;
+export type OrganizationInvitation = typeof organizationInvitations.$inferSelect;
+
 export const students = pgTable("students", {
   id: uuid("id").primaryKey().defaultRandom().notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
