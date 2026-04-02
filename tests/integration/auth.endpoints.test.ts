@@ -5,15 +5,20 @@ import { eq } from "drizzle-orm";
 import { app } from "../../src/app.js";
 import { config } from "../../src/config/config.js";
 import { db } from "../../src/db/index.js";
-import { users } from "../../src/db/schema.js";
+import { organizations, users } from "../../src/db/schema.js";
 import { loginUser, paths, registerUser, validPassword } from "./helpers.js";
 
 describe("POST /api/v1/auth/register", () => {
   const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const email = `register-test-${runId}@example.com`;
   let createdUserId: string | null = null;
+  let createdOrganizationId: string | null = null;
 
   afterEach(async () => {
+    if (createdOrganizationId) {
+      await db.delete(organizations).where(eq(organizations.id, createdOrganizationId));
+      createdOrganizationId = null;
+    }
     if (createdUserId) {
       await db.delete(users).where(eq(users.id, createdUserId));
       createdUserId = null;
@@ -29,11 +34,39 @@ describe("POST /api/v1/auth/register", () => {
 
     expect(res.body).toMatchObject({
       email,
-      role: "org_admin",
     });
+    expect(res.body.role).toBeUndefined();
+    expect(res.body.activeOrganizationId).toBeUndefined();
     expect(typeof res.body.id).toBe("string");
     expect(res.body.createdAt).toBeDefined();
     createdUserId = res.body.id;
+  });
+
+  it("allows a newly registered user without memberships to create an organization", async () => {
+    const scopedEmail = `register-org-${runId}@example.com`;
+    const register = await request(app)
+      .post(paths.register)
+      .send({ email: scopedEmail, password: validPassword })
+      .expect(201);
+    createdUserId = register.body.id;
+
+    const login = await request(app)
+      .post(paths.login)
+      .send({ email: scopedEmail, password: validPassword })
+      .expect(200);
+
+    const createOrg = await request(app)
+      .post("/api/v1/organizations")
+      .set("Authorization", `Bearer ${login.body.token}`)
+      .send({ name: "Fresh Org", slug: `fresh-org-${runId}` })
+      .expect(201)
+      .expect("Content-Type", /json/);
+
+    createdOrganizationId = createOrg.body.id;
+    expect(createOrg.body).toMatchObject({
+      name: "Fresh Org",
+      slug: `fresh-org-${runId}`,
+    });
   });
 
   it("returns 400 when email is already registered", async () => {

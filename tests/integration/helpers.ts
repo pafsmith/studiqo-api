@@ -59,11 +59,38 @@ async function ensureDefaultOrganizationId(): Promise<string> {
   return created.id;
 }
 
-export async function registerUser(email: string): Promise<RegisterResponseBody> {
+type RegisterHelperOptions = {
+  bootstrapAdminOrganization?: boolean;
+};
+
+export async function registerUser(
+  email: string,
+  options?: RegisterHelperOptions,
+): Promise<RegisterResponseBody> {
+  const bootstrapAdminOrganization = options?.bootstrapAdminOrganization ?? true;
   const res = await request(app)
     .post(paths.register)
     .send({ email, password: validPassword })
     .expect(201);
+
+  if (bootstrapAdminOrganization) {
+    const organizationId = await ensureDefaultOrganizationId();
+    await db
+      .insert(organizationMemberships)
+      .values({
+        organizationId,
+        userId: res.body.id,
+        role: "org_admin",
+      })
+      .onConflictDoUpdate({
+        target: [
+          organizationMemberships.organizationId,
+          organizationMemberships.userId,
+        ],
+        set: { role: "org_admin" },
+      });
+  }
+
   return res.body;
 }
 
