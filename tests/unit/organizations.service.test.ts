@@ -3,7 +3,13 @@ import type { Request } from "express";
 import { organizationsService } from "../../src/modules/organizations/organizations.service.js";
 import { organizationsRepository } from "../../src/modules/organizations/organizations.repository.js";
 import { usersRepository } from "../../src/modules/users/users.repository.js";
-import { NotFoundError, UserForbiddenError } from "../../src/common/errors/errors.js";
+import { invitationsRepository } from "../../src/modules/invitations/invitations.repository.js";
+import { invitationsEmailService } from "../../src/modules/invitations/invitations.email.js";
+import {
+  ConflictError,
+  NotFoundError,
+  UserForbiddenError,
+} from "../../src/common/errors/errors.js";
 import type { User } from "../../src/db/schema.js";
 
 vi.mock("../../src/modules/organizations/organizations.repository.js", () => ({
@@ -18,16 +24,32 @@ vi.mock("../../src/modules/organizations/organizations.repository.js", () => ({
   },
 }));
 
+vi.mock("../../src/modules/invitations/invitations.repository.js", () => ({
+  invitationsRepository: {
+    findLatestActiveInvitationForEmailAndRole: vi.fn(),
+    createInvitation: vi.fn(),
+    revokeInvitation: vi.fn(),
+  },
+}));
+
+vi.mock("../../src/modules/invitations/invitations.email.js", () => ({
+  invitationsEmailService: {
+    sendParentInvitationEmail: vi.fn(),
+  },
+}));
+
 vi.mock("../../src/modules/users/users.repository.js", () => ({
   usersRepository: {
     getUserById: vi.fn(),
   },
 }));
 
-function reqWithUser(
-  user: Omit<User, "isSuperadmin"> & { isSuperadmin?: boolean },
-  organizationId = "org-1",
-): Request {
+type ReqUserInput = Omit<User, "isSuperadmin"> & {
+  isSuperadmin?: boolean;
+  role?: "admin" | "org_admin" | "tutor" | "parent";
+};
+
+function reqWithUser(user: ReqUserInput, organizationId = "org-1"): Request {
   return {
     user: {
       ...user,
@@ -35,7 +57,7 @@ function reqWithUser(
     } as User,
     organizationId,
     organizationRole: user.role === "admin" ? "org_admin" : user.role,
-  } as Request;
+  } as unknown as Request;
 }
 
 describe("organizationsService", () => {
@@ -48,6 +70,12 @@ describe("organizationsService", () => {
     vi.mocked(organizationsRepository.findOrganizationById).mockReset();
     vi.mocked(organizationsRepository.listMembershipsForOrganization).mockReset();
     vi.mocked(usersRepository.getUserById).mockReset();
+    vi.mocked(
+      invitationsRepository.findLatestActiveInvitationForEmailAndRole,
+    ).mockReset();
+    vi.mocked(invitationsRepository.createInvitation).mockReset();
+    vi.mocked(invitationsRepository.revokeInvitation).mockReset();
+    vi.mocked(invitationsEmailService.sendParentInvitationEmail).mockReset();
   });
 
   it("creates an organization and memberships creator as org_admin", async () => {
@@ -164,5 +192,126 @@ describe("organizationsService", () => {
         "org-404",
       ),
     ).rejects.toThrow(NotFoundError);
+  });
+
+  it("creates a parent invitation for org_admin", async () => {
+    const now = new Date();
+    vi.mocked(organizationsRepository.findOrganizationById).mockResolvedValue({
+      id: "org-1",
+      name: "Center One",
+      slug: "center-one",
+      createdAt: now,
+      updatedAt: now,
+    });
+    vi.mocked(
+      invitationsRepository.findLatestActiveInvitationForEmailAndRole,
+    ).mockResolvedValue(undefined);
+    vi.mocked(invitationsRepository.createInvitation).mockResolvedValue({
+      id: "invite-1",
+      organizationId: "org-1",
+      invitedByUserId: "admin-1",
+      acceptedByUserId: null,
+      email: "parent@example.com",
+      role: "parent",
+      tokenHash: "hash",
+      expiresAt: new Date(Date.now() + 24 * 3600_000),
+      acceptedAt: null,
+      revokedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    vi.mocked(invitationsEmailService.sendParentInvitationEmail).mockResolvedValue(
+      undefined,
+    );
+
+    const out = await organizationsService.createParentInvitation(
+      reqWithUser({
+        id: "admin-1",
+        email: "admin@example.com",
+        hasedPassword: "h",
+        role: "admin",
+        createdAt: now,
+        updatedAt: now,
+      }),
+      "org-1",
+      { email: "Parent@Example.com" },
+    );
+
+    expect(out.id).toBe("invite-1");
+    expect(out.role).toBe("parent");
+    expect(invitationsRepository.createInvitation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org-1",
+        invitedByUserId: "admin-1",
+        email: "parent@example.com",
+        role: "parent",
+      }),
+    );
+    expect(invitationsEmailService.sendParentInvitationEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        invitationId: "invite-1",
+        organizationSlug: "center-one",
+        organizationName: "Center One",
+      }),
+    );
+  });
+
+  it("rejects parent invitation when requester is not org_admin", async () => {
+    await expect(
+      organizationsService.createParentInvitation(
+        reqWithUser({
+          id: "tutor-1",
+          email: "tutor@example.com",
+          hasedPassword: "h",
+          role: "tutor",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+        "org-1",
+        { email: "parent@example.com" },
+      ),
+    ).rejects.toThrow(UserForbiddenError);
+  });
+
+  it("rejects duplicate active parent invitation", async () => {
+    const now = new Date();
+    vi.mocked(organizationsRepository.findOrganizationById).mockResolvedValue({
+      id: "org-1",
+      name: "Center One",
+      slug: "center-one",
+      createdAt: now,
+      updatedAt: now,
+    });
+    vi.mocked(
+      invitationsRepository.findLatestActiveInvitationForEmailAndRole,
+    ).mockResolvedValue({
+      id: "invite-existing",
+      organizationId: "org-1",
+      invitedByUserId: "admin-1",
+      acceptedByUserId: null,
+      email: "parent@example.com",
+      role: "parent",
+      tokenHash: "hash",
+      expiresAt: new Date(Date.now() + 24 * 3600_000),
+      acceptedAt: null,
+      revokedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await expect(
+      organizationsService.createParentInvitation(
+        reqWithUser({
+          id: "admin-1",
+          email: "admin@example.com",
+          hasedPassword: "h",
+          role: "admin",
+          createdAt: now,
+          updatedAt: now,
+        }),
+        "org-1",
+        { email: "parent@example.com" },
+      ),
+    ).rejects.toThrow(ConflictError);
   });
 });
