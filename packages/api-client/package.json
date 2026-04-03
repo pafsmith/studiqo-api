@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./client": "./src/create-client.ts",
+    "./errors": "./src/errors.ts",
+    "./generated": "./src/generated.ts"
   },
   "scripts": {
     "generate": "openapi-typescript ../../apps/api/docs/openapi/openapi.yaml -o src/generated.ts"
@@ -12,5 +15,8 @@
   "devDependencies": {
     "openapi-typescript": "^7.10.1",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
   }
 }
