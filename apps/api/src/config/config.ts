@@ -1,7 +1,29 @@
 import dotenv from "dotenv";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { MigrationConfig } from "drizzle-orm/migrator";
 
-dotenv.config({ path: process.env.ENV_FILE ?? ".env" });
+function resolveEnvFilePath(): string {
+  const envFile = process.env.ENV_FILE;
+
+  if (envFile) {
+    const workspacePath = resolve(process.cwd(), envFile);
+    if (existsSync(workspacePath)) {
+      return workspacePath;
+    }
+    const repoRootPath = resolve(process.cwd(), "../../", envFile);
+    return repoRootPath;
+  }
+
+  const workspaceDefaultPath = resolve(process.cwd(), ".env");
+  if (existsSync(workspaceDefaultPath)) {
+    return workspaceDefaultPath;
+  }
+
+  return resolve(process.cwd(), "../../.env");
+}
+
+dotenv.config({ path: resolveEnvFilePath() });
 
 type Config = {
   api: APIConfig;

@@ -6,3 +6,4 @@ coverage
 .prisma
 postman/
 .cursor/
+apps/web/.next
