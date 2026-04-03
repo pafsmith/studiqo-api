@@ -7,3 +7,4 @@ coverage
 postman/
 .cursor/
 apps/web/.next
+apps/web/.env.local
