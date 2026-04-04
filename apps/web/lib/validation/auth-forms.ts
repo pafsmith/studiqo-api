@@ -40,3 +40,7 @@ export const inviteTokenParamSchema = z
   .string()
   .length(64)
   .regex(/^[a-f0-9]+$/, "Invalid invitation token");
+
+export const inviteParentEmailSchema = z.object({
+  email: z.string().trim().email("Valid email is required").max(256),
+});
