@@ -9,11 +9,14 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@studiqo/api-client": "*",
     "@tanstack/react-query": "^5.96.2",
     "next": "16.2.2",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "react-hook-form": "^7.72.1",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -6,7 +6,14 @@ import { useState, type ReactNode } from "react";
 import { SessionProvider } from "@/lib/auth/session";
 
 export function Providers({ children }: { children: ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: { retry: false },
+        },
+      }),
+  );
 
   return (
     <QueryClientProvider client={queryClient}>
