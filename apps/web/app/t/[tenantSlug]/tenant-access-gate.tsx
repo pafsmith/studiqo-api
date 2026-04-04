@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { useOrganizationsQuery } from "@/lib/api/organizations-query";
+import {
+  useOrganizationsQuery,
+  useSetActiveOrganizationMutation,
+} from "@/lib/api/organizations-query";
 import { useSession } from "@/lib/auth/session";
 import { appShellUrl } from "@/lib/urls";
 
@@ -15,6 +18,17 @@ export function TenantAccessGate({
 }) {
   const { authStatus, user } = useSession();
   const { data: orgs, isLoading: orgsLoading } = useOrganizationsQuery();
+  const setActiveOrg = useSetActiveOrganizationMutation();
+  const [orgSyncFailed, setOrgSyncFailed] = useState(false);
+
+  const organizationId = useMemo(
+    () => orgs?.find((o) => o.slug === tenantSlug)?.id ?? null,
+    [orgs, tenantSlug],
+  );
+
+  useEffect(() => {
+    setOrgSyncFailed(false);
+  }, [tenantSlug]);
 
   useEffect(() => {
     if (authStatus !== "unauthenticated") return;
@@ -25,6 +39,34 @@ export function TenantAccessGate({
       : "";
     window.location.href = appShellUrl(`/login${q}`);
   }, [authStatus]);
+
+  useEffect(() => {
+    if (
+      authStatus !== "authenticated" ||
+      !organizationId ||
+      orgSyncFailed ||
+      user?.activeOrganizationId === organizationId
+    ) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        await setActiveOrg.mutateAsync(organizationId);
+      } catch {
+        if (!cancelled) setOrgSyncFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    authStatus,
+    organizationId,
+    user?.activeOrganizationId,
+    orgSyncFailed,
+    setActiveOrg,
+  ]);
 
   if (authStatus === "loading") {
     return <p style={{ padding: 24 }}>Loading session…</p>;
@@ -53,6 +95,26 @@ export function TenantAccessGate({
         </p>
       </main>
     );
+  }
+
+  if (orgSyncFailed) {
+    return (
+      <main style={{ padding: 24, maxWidth: 480 }}>
+        <h1>Could not open workspace</h1>
+        <p>We could not switch your active organization to this tenant.</p>
+        <p>
+          <a href={appShellUrl("/onboarding")}>Manage organizations</a>
+        </p>
+      </main>
+    );
+  }
+
+  const needsOrgSync =
+    Boolean(organizationId) &&
+    user?.activeOrganizationId !== organizationId;
+
+  if (needsOrgSync || setActiveOrg.isPending) {
+    return <p style={{ padding: 24 }}>Switching to this organization…</p>;
   }
 
   return children;
