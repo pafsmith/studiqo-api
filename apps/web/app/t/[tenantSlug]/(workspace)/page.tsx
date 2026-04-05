@@ -8,9 +8,10 @@ export default async function TenantHomePage({ params }: PageProps) {
     <main>
       <h1 style={{ fontSize: 22 }}>Workspace</h1>
       <p style={{ fontSize: 15, opacity: 0.85 }}>
-        You are in <strong>{tenantSlug}</strong>. Manage students from{" "}
-        <Link href={`/t/${tenantSlug}/students`}>Students</Link>. Lesson tools
-        arrive in Phase 3.
+        You are in <strong>{tenantSlug}</strong>. Open{" "}
+        <Link href={`/t/${tenantSlug}/students`}>Students</Link> or{" "}
+        <Link href={`/t/${tenantSlug}/lessons`}>Lessons</Link> to work in this
+        organization.
       </p>
     </main>
   );
