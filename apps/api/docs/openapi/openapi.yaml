@@ -1679,7 +1679,7 @@ components:
 
     OrganizationMembership:
       type: object
-      required: [organizationId, userId, role, createdAt]
+      required: [organizationId, userId, role, createdAt, email]
       properties:
         organizationId:
           type: string
@@ -1692,6 +1692,10 @@ components:
         createdAt:
           type: string
           format: date-time
+        email:
+          type: string
+          format: email
+          description: Account email for the member (display label; no separate name field on users).
       additionalProperties: false
 
     AddOrganizationMemberRequest:

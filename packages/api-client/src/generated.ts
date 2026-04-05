@@ -627,6 +627,11 @@ export interface components {
             role: components["schemas"]["OrganizationMembershipRole"];
             /** Format: date-time */
             createdAt: string;
+            /**
+             * Format: email
+             * @description Account email for the member (display label; no separate name field on users).
+             */
+            email: string;
         };
         AddOrganizationMemberRequest: {
             /** Format: uuid */

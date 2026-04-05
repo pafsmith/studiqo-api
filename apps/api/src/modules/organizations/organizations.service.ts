@@ -152,7 +152,10 @@ export const organizationsService = {
       userId: body.userId,
       role: body.role,
     });
-    return toOrganizationMembershipResponse(membership);
+    return toOrganizationMembershipResponse({
+      ...membership,
+      email: user.email,
+    });
   },
 
   listOrganizationMembers: async (
