@@ -37,3 +37,37 @@ export function formatIsoDateTime(
     timeZone,
   }).format(d);
 }
+
+/** Monday 00:00:00.000 in the user's local timezone. */
+export function startOfIsoWeekLocal(ref = new Date()): Date {
+  const d = new Date(ref);
+  const day = d.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + mondayOffset);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/** Sunday 23:59:59.999 local, for the week that contains `ref`. */
+export function endOfIsoWeekLocal(ref = new Date()): Date {
+  const start = startOfIsoWeekLocal(ref);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return end;
+}
+
+/** Value for `<input type="datetime-local" />` in local time. */
+export function toDatetimeLocalValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Parse `datetime-local` string (no timezone) as local instant → ISO UTC for the API. */
+export function parseDatetimeLocalToIso(local: string): string {
+  const d = new Date(local);
+  if (Number.isNaN(d.getTime())) {
+    throw new RangeError(`Invalid datetime-local: ${local}`);
+  }
+  return d.toISOString();
+}
