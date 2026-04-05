@@ -19,13 +19,14 @@ export function toOrganizationResponse(row: Organization): OrganizationResponse 
 }
 
 export function toOrganizationMembershipResponse(
-  row: OrganizationMembership,
+  row: OrganizationMembership & { email: string },
 ): OrganizationMembershipResponse {
   return {
     organizationId: row.organizationId,
     userId: row.userId,
     role: row.role,
     createdAt: row.createdAt,
+    email: row.email,
   };
 }
 

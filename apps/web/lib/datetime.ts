@@ -11,6 +11,11 @@ export function parseIsoDateTime(iso: string): Date {
   return d;
 }
 
+export function formatIsoDate(iso: string): string {
+  const d = parseIsoDateTime(iso);
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(d);
+}
+
 export function formatIsoDateTime(
   iso: string,
   options?: {

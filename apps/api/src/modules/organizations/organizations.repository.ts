@@ -7,6 +7,7 @@ import {
   type OrganizationMembership,
   organizationMemberships,
   organizations,
+  users,
 } from "../../db/schema.js";
 
 export const organizationsRepository = {
@@ -63,10 +64,18 @@ export const organizationsRepository = {
 
   listMembershipsForOrganization: async (
     organizationId: string,
-  ): Promise<OrganizationMembership[]> => {
+  ): Promise<Array<OrganizationMembership & { email: string }>> => {
     return db
-      .select()
+      .select({
+        organizationId: organizationMemberships.organizationId,
+        userId: organizationMemberships.userId,
+        role: organizationMemberships.role,
+        createdAt: organizationMemberships.createdAt,
+        updatedAt: organizationMemberships.updatedAt,
+        email: users.email,
+      })
       .from(organizationMemberships)
+      .innerJoin(users, eq(organizationMemberships.userId, users.id))
       .where(eq(organizationMemberships.organizationId, organizationId))
       .orderBy(
         asc(organizationMemberships.createdAt),

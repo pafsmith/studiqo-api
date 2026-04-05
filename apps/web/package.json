@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
-    "@studiqo/api-client": "*",
+    "@studiqo/api-client": "workspace:*",
     "@tanstack/react-query": "^5.96.2",
     "next": "16.2.2",
     "react": "19.1.0",

@@ -16,14 +16,17 @@ export function TenantNav({
   isSuperadmin: boolean;
 }) {
   const base = `/t/${tenantSlug}`;
-  const showStaffLinks =
-    role === "org_admin" || role === "tutor" || isSuperadmin;
+  const showStudentsLink =
+    role === "org_admin" ||
+    role === "tutor" ||
+    role === "parent" ||
+    isSuperadmin;
 
   return (
     <nav style={{ display: "flex", gap: 16, fontSize: 14, padding: "8px 0" }}>
       <Link href={base}>Home</Link>
-      {showStaffLinks ? (
-        <span style={{ opacity: 0.5 }}>Students (Phase 2)</span>
+      {showStudentsLink ? (
+        <Link href={`${base}/students`}>Students</Link>
       ) : null}
       {role === "org_admin" || isSuperadmin ? (
         <Link href={`${base}/invites`}>Invites</Link>

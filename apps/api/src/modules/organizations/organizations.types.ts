@@ -17,6 +17,8 @@ export type OrganizationMembershipResponse = {
   userId: string;
   role: OrganizationMembershipRole;
   createdAt: Date;
+  /** User's account email (used as display label; users have no separate legal name field). */
+  email: string;
 };
 
 export type AddOrganizationMemberRequest = {
