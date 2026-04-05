@@ -16,7 +16,7 @@ export function TenantNav({
   isSuperadmin: boolean;
 }) {
   const base = `/t/${tenantSlug}`;
-  const showStudentsLink =
+  const showStudentsAndLessons =
     role === "org_admin" ||
     role === "tutor" ||
     role === "parent" ||
@@ -25,8 +25,11 @@ export function TenantNav({
   return (
     <nav style={{ display: "flex", gap: 16, fontSize: 14, padding: "8px 0" }}>
       <Link href={base}>Home</Link>
-      {showStudentsLink ? (
+      {showStudentsAndLessons ? (
         <Link href={`${base}/students`}>Students</Link>
+      ) : null}
+      {showStudentsAndLessons ? (
+        <Link href={`${base}/lessons`}>Lessons</Link>
       ) : null}
       {role === "org_admin" || isSuperadmin ? (
         <Link href={`${base}/invites`}>Invites</Link>
