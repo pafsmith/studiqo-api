@@ -22,38 +22,33 @@ export function TenantChrome({
   );
 
   return (
-    <div style={{ minHeight: "100vh", fontFamily: "system-ui, sans-serif" }}>
-      <header
-        style={{
-          padding: "12px 20px",
-          borderBottom: "1px solid #e5e5e5",
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 12,
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <strong style={{ fontSize: 16 }}>
+    <div className="min-h-screen">
+      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line bg-surface px-6 py-4 md:items-center md:px-8">
+        <div>
+          <p className="font-serif-display m-0 text-xl font-semibold leading-tight tracking-tight">
             {activeOrg?.name ?? tenantSlug}
-          </strong>
+          </p>
           {activeOrg ? (
-            <span style={{ fontSize: 12, opacity: 0.65 }}>{activeOrg.slug}</span>
+            <span className="mt-0.5 block text-xs leading-snug text-ink-faint">
+              {activeOrg.slug}
+            </span>
           ) : null}
-          <span style={{ fontSize: 13, opacity: 0.75 }}>
+          <p className="mt-1.5 text-[0.8125rem] leading-snug text-ink-muted">
             {user?.email ?? "—"}
             {user?.role ? ` · ${user.role}` : null}
             {user?.isSuperadmin ? " · superadmin" : null}
-          </span>
+          </p>
         </div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <a href={appShellUrl("/onboarding")} style={{ fontSize: 14 }}>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <a
+            href={appShellUrl("/onboarding")}
+            className="app-nav-link app-nav-link--on-surface"
+          >
             All organizations
           </a>
           <button
             type="button"
-            style={{ padding: "8px 12px", fontSize: 14 }}
+            className="app-btn app-btn-primary"
             onClick={() => {
               void (async () => {
                 await logout();
@@ -65,14 +60,12 @@ export function TenantChrome({
           </button>
         </div>
       </header>
-      <div style={{ padding: "0 20px" }}>
-        <TenantNav
-          tenantSlug={tenantSlug}
-          role={user?.role}
-          isSuperadmin={user?.isSuperadmin ?? false}
-        />
-      </div>
-      <div style={{ padding: "16px 20px 32px" }}>{children}</div>
+      <TenantNav
+        tenantSlug={tenantSlug}
+        role={user?.role}
+        isSuperadmin={user?.isSuperadmin ?? false}
+      />
+      <div className="px-6 py-4 pb-8 md:px-8 md:py-6 md:pb-10">{children}</div>
     </div>
   );
 }
