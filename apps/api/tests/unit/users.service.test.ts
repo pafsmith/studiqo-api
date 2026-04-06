@@ -122,9 +122,7 @@ describe("usersService updateUser", () => {
     vi.mocked(usersRepository.getUserByIdInOrganization).mockResolvedValue(
       existingUser,
     );
-    vi.mocked(usersRepository.updateUser).mockResolvedValue({
-      ...existingUser,
-    });
+    vi.mocked(usersRepository.getUserById).mockResolvedValue(existingUser);
     vi.mocked(organizationsRepository.findMembership)
       .mockResolvedValueOnce({
         organizationId: "org-1",
@@ -152,7 +150,8 @@ describe("usersService updateUser", () => {
       role: "tutor",
     });
 
-    expect(usersRepository.updateUser).toHaveBeenCalledWith("user-1", {});
+    expect(usersRepository.updateUser).not.toHaveBeenCalled();
+    expect(usersRepository.getUserById).toHaveBeenCalledWith("user-1");
     expect(organizationsRepository.createMembership).toHaveBeenCalledWith({
       organizationId: "org-1",
       userId: "user-1",

@@ -124,6 +124,28 @@ describe("PUT /api/v1/users/:userId", () => {
     });
     expect(res.body.createdAt).toBeDefined();
   });
+
+  it("returns 200 when only role changes (no user row patch)", async () => {
+    const admin = await registerUser(adminEmail);
+    adminId = admin.id;
+    const other = await registerUser(otherEmail);
+    otherId = other.id;
+    const adminSession = await loginUser(adminEmail);
+
+    const res = await request(app)
+      .put(`${paths.users}/${other.id}`)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ role: "tutor" })
+      .expect("Content-Type", /json/)
+      .expect(200);
+
+    expect(res.body).toMatchObject({
+      id: other.id,
+      email: other.email,
+      role: "tutor",
+    });
+    expect(res.body.createdAt).toBeDefined();
+  });
 });
 
 describe("DELETE /api/v1/users/:userId", () => {
