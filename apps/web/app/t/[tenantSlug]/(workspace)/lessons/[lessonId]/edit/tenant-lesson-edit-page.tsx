@@ -1,7 +1,7 @@
 "use client";
 
 import type { components } from "@studiqo/api-client/generated";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@/lib/zod-resolver";
 import { isStudiqoApiError } from "@studiqo/api-client/errors";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -83,7 +83,7 @@ export function TenantLessonEditPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<UpdateLessonForm>({
-    resolver: zodResolver(updateLessonFormSchema),
+    resolver: zodResolver<UpdateLessonForm>(updateLessonFormSchema),
     defaultValues: {
       tutorId: "",
       subjectId: "",

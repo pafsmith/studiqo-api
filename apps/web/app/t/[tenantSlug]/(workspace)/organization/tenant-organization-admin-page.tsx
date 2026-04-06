@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@/lib/zod-resolver";
 import type { components } from "@studiqo/api-client/generated";
 import { isStudiqoApiError } from "@studiqo/api-client/errors";
 import Link from "next/link";
@@ -134,7 +134,9 @@ export function TenantOrganizationAdminPage() {
   const [addMemberError, setAddMemberError] = useState<string | null>(null);
 
   const addForm = useForm<AddOrganizationMemberForm>({
-    resolver: zodResolver(addOrganizationMemberFormSchema),
+    resolver: zodResolver<AddOrganizationMemberForm>(
+      addOrganizationMemberFormSchema,
+    ),
     defaultValues: { userId: "", role: "tutor" },
   });
 
