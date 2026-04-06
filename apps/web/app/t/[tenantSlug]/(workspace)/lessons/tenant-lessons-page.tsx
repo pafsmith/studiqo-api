@@ -5,6 +5,24 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useLessonsListQuery } from "@/lib/api/lessons-query";
 import { useOrganizationMembersQuery } from "@/lib/api/organization-members-query";
 import { useStudentsListQuery } from "@/lib/api/students-query";
@@ -20,9 +38,14 @@ import { useSession } from "@/lib/auth/session";
 import { isOrgAdminOrSuperadmin } from "@/lib/tenant-role";
 import { lessonListRangeSchema } from "@/lib/validation/lesson-forms";
 
+import { LessonPageHeader, LessonStatusBadge } from "./_components/lesson-ui";
+
 type Student = components["schemas"]["Student"];
 type Subject = components["schemas"]["Subject"];
 type OrgMember = components["schemas"]["OrganizationMembership"];
+
+const ALL_STUDENTS = "__all_students__";
+const ALL_TUTORS = "__all_tutors__";
 
 function addDays(d: Date, n: number): Date {
   const x = new Date(d);
@@ -104,184 +127,227 @@ export function TenantLessonsPage() {
 
   const base = `/t/${tenantSlug}/lessons`;
   const tutors = membersQ.data?.filter((m) => m.role === "tutor") ?? [];
+  const referenceError =
+    studentsQ.error ?? subjectsQ.error ?? membersQ.error ?? null;
+  const loadingReferences =
+    studentsQ.isLoading || subjectsQ.isLoading || membersQ.isLoading;
 
   if (orgsLoading || !organizationId) {
     return (
-      <main>
-        <h1 style={{ fontSize: 22 }}>Lessons</h1>
-        <p>Loading…</p>
+      <main className="flex flex-col gap-4">
+        <LessonPageHeader title="Lessons" />
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
       </main>
     );
   }
 
   return (
-    <main>
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 12,
-          alignItems: "baseline",
-          justifyContent: "space-between",
-        }}
-      >
-        <h1 style={{ fontSize: 22, margin: 0 }}>Lessons</h1>
-        {isAdmin ? (
-          <Link href={`${base}/new`} style={{ fontSize: 15 }}>
-            New lesson
-          </Link>
-        ) : null}
-      </div>
+    <main className="flex flex-col gap-6">
+      <LessonPageHeader
+        title="Lessons"
+        description="Review the current week, filter by student or tutor, and open a lesson to manage its lifecycle."
+        actions={
+          isAdmin ? (
+            <Button size="sm" asChild>
+              <Link href={`${base}/new`}>New lesson</Link>
+            </Button>
+          ) : null
+        }
+      />
 
-      <section
-        style={{
-          marginTop: 16,
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 12,
-          alignItems: "center",
-        }}
-      >
-        <span style={{ fontSize: 14, opacity: 0.85 }}>Week</span>
-        <button
-          type="button"
-          onClick={() => setWeekAnchor((d) => addDays(d, -7))}
-          style={{ fontSize: 14 }}
-        >
-          Previous
-        </button>
-        <button
-          type="button"
-          onClick={() => setWeekAnchor(new Date())}
-          style={{ fontSize: 14 }}
-        >
-          This week
-        </button>
-        <button
-          type="button"
-          onClick={() => setWeekAnchor((d) => addDays(d, 7))}
-          style={{ fontSize: 14 }}
-        >
-          Next
-        </button>
-        <span style={{ fontSize: 13, opacity: 0.75 }}>
-          {formatIsoDateTime(fromIso)} – {formatIsoDateTime(toIso)}
-        </span>
-      </section>
-
-      {!rangeValid ? (
-        <p style={{ color: "#b91c1c", marginTop: 12 }}>
-          {rangeParsed.success ? null : rangeParsed.error.issues[0]?.message}
-        </p>
-      ) : null}
-
-      <div
-        style={{
-          marginTop: 16,
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 16,
-          alignItems: "flex-end",
-        }}
-      >
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 13 }}>Student</span>
-          <select
-            value={studentFilter}
-            onChange={(e) => setStudentFilter(e.target.value)}
-            style={{ minWidth: 200, fontSize: 14 }}
-          >
-            <option value="">All</option>
-            {(studentsQ.data ?? []).map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.firstName} {s.lastName}
-              </option>
-            ))}
-          </select>
-        </label>
-        {canUseTutorFilter ? (
-          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 13 }}>Tutor</span>
-            <select
-              value={tutorFilter}
-              onChange={(e) => setTutorFilter(e.target.value)}
-              style={{ minWidth: 220, fontSize: 14 }}
+      <Card>
+        <CardHeader className="border-b">
+          <CardTitle>Week view</CardTitle>
+          <CardDescription>
+            Navigate the current lesson window and narrow the list by student or
+            tutor.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-5 pt-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setWeekAnchor((d) => addDays(d, -7))}
             >
-              <option value="">All</option>
-              {tutors.map((t) => (
-                <option key={t.userId} value={t.userId}>
-                  {formatOrgMemberOptionLabel(t)}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
-      </div>
+              Previous
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setWeekAnchor(new Date())}
+            >
+              This week
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setWeekAnchor((d) => addDays(d, 7))}
+            >
+              Next
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Showing {formatIsoDateTime(fromIso)} to {formatIsoDateTime(toIso)}.
+          </p>
 
-      {studentsQ.isLoading || subjectsQ.isLoading || membersQ.isLoading ? (
-        <p style={{ marginTop: 16 }}>Loading filters…</p>
+          {!rangeValid ? (
+            <Alert variant="destructive">
+              <AlertDescription>
+                {rangeParsed.success ? null : rangeParsed.error.issues[0]?.message}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="lessons-student-filter">Student</Label>
+              <Select
+                value={studentFilter || ALL_STUDENTS}
+                onValueChange={(value) =>
+                  setStudentFilter(value === ALL_STUDENTS ? "" : value)
+                }
+                disabled={studentsQ.isLoading}
+              >
+                <SelectTrigger id="lessons-student-filter" className="w-full">
+                  <SelectValue placeholder="All students" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_STUDENTS}>All students</SelectItem>
+                  {(studentsQ.data ?? []).map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.firstName} {s.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {canUseTutorFilter ? (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="lessons-tutor-filter">Tutor</Label>
+                <Select
+                  value={tutorFilter || ALL_TUTORS}
+                  onValueChange={(value) =>
+                    setTutorFilter(value === ALL_TUTORS ? "" : value)
+                  }
+                  disabled={membersQ.isLoading}
+                >
+                  <SelectTrigger id="lessons-tutor-filter" className="w-full">
+                    <SelectValue placeholder="All tutors" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_TUTORS}>All tutors</SelectItem>
+                    {tutors.map((t) => (
+                      <SelectItem key={t.userId} value={t.userId}>
+                        {formatOrgMemberOptionLabel(t)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+          </div>
+
+          {loadingReferences ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <Skeleton className="h-12 w-full" />
+              {canUseTutorFilter ? <Skeleton className="h-12 w-full" /> : null}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      {referenceError ? (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {referenceError instanceof Error
+              ? referenceError.message
+              : "Some lesson metadata could not be loaded"}
+          </AlertDescription>
+        </Alert>
       ) : null}
 
-      {lessonsQ.isLoading ? <p style={{ marginTop: 16 }}>Loading lessons…</p> : null}
+      {lessonsQ.isLoading ? (
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      ) : null}
+
       {lessonsQ.error ? (
-        <p style={{ color: "#b91c1c", marginTop: 16 }}>
-          {lessonsQ.error instanceof Error
-            ? lessonsQ.error.message
-            : "Could not load lessons"}
-        </p>
+        <Alert variant="destructive">
+          <AlertDescription>
+            {lessonsQ.error instanceof Error
+              ? lessonsQ.error.message
+              : "Could not load lessons"}
+          </AlertDescription>
+        </Alert>
       ) : null}
 
       {!lessonsQ.isLoading &&
       !lessonsQ.error &&
       rangeValid &&
       sortedLessons.length === 0 ? (
-        <p style={{ opacity: 0.85, marginTop: 16 }}>
-          No lessons in this range.
-          {isAdmin ? (
-            <>
-              {" "}
-              <Link href={`${base}/new`}>Schedule one</Link>.
-            </>
-          ) : null}
-        </p>
+        <Card>
+          <CardContent className="flex flex-col gap-3 pt-6">
+            <p className="m-0 max-w-prose text-sm text-muted-foreground">
+              No lessons are scheduled in this range.
+            </p>
+            {isAdmin ? (
+              <Button size="sm" asChild className="w-fit">
+                <Link href={`${base}/new`}>Schedule a lesson</Link>
+              </Button>
+            ) : null}
+          </CardContent>
+        </Card>
       ) : null}
 
       {!lessonsQ.isLoading && !lessonsQ.error && sortedLessons.length > 0 ? (
-        <ul style={{ listStyle: "none", padding: 0, marginTop: 16 }}>
-          {sortedLessons.map((lesson) => {
-            const stu = studentById.get(lesson.studentId);
-            const sub = subjectById.get(lesson.subjectId);
-            const tut = tutorByUserId.get(lesson.tutorId);
-            const studentLabel = stu
-              ? `${stu.firstName} ${stu.lastName}`
-              : lesson.studentId;
-            const subjectLabel = sub?.name ?? lesson.subjectId;
-            const tutorLabel = tut?.email ?? lesson.tutorId;
-            return (
-              <li
-                key={lesson.id}
-                style={{
-                  borderBottom: "1px solid #eee",
-                  padding: "12px 0",
-                }}
-              >
-                <Link
-                  href={`${base}/${lesson.id}`}
-                  style={{ fontSize: 16, fontWeight: 600 }}
+        <Card className="py-0">
+          <CardContent className="flex flex-col gap-0 px-0 py-0">
+            {sortedLessons.map((lesson) => {
+              const stu = studentById.get(lesson.studentId);
+              const sub = subjectById.get(lesson.subjectId);
+              const tut = tutorByUserId.get(lesson.tutorId);
+              const studentLabel = stu
+                ? `${stu.firstName} ${stu.lastName}`
+                : lesson.studentId;
+              const subjectLabel = sub?.name ?? lesson.subjectId;
+              const tutorLabel = tut?.email ?? lesson.tutorId;
+
+              return (
+                <div
+                  key={lesson.id}
+                  className="border-b border-border px-4 py-4 transition-colors last:border-b-0 hover:bg-muted/30"
                 >
-                  {formatIsoDateTime(lesson.startsAt)} →{" "}
-                  {formatIsoDateTime(lesson.endsAt)}
-                </Link>
-                <div style={{ fontSize: 14, opacity: 0.85, marginTop: 4 }}>
-                  {studentLabel} · {subjectLabel} · {tutorLabel}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={`${base}/${lesson.id}`}
+                        className="text-base font-semibold text-foreground transition-colors hover:text-primary"
+                      >
+                        {formatIsoDateTime(lesson.startsAt)} →{" "}
+                        {formatIsoDateTime(lesson.endsAt)}
+                      </Link>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {studentLabel} · {subjectLabel} · {tutorLabel}
+                      </p>
+                    </div>
+                    <LessonStatusBadge status={lesson.status} className="self-start" />
+                  </div>
                 </div>
-                <div style={{ fontSize: 13, marginTop: 4 }}>
-                  Status: <strong>{lesson.status}</strong>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+              );
+            })}
+          </CardContent>
+        </Card>
       ) : null}
     </main>
   );
