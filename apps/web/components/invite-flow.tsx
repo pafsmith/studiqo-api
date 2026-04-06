@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@/lib/zod-resolver";
 import { isStudiqoApiError } from "@studiqo/api-client/errors";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -111,7 +111,7 @@ export function InviteAcceptForm({
   const [exists, setExists] = useState(false);
 
   const form = useForm<AcceptForm>({
-    resolver: zodResolver(acceptInviteFormSchema),
+    resolver: zodResolver<AcceptForm>(acceptInviteFormSchema),
     defaultValues: { password: "" },
   });
 

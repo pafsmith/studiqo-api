@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@/lib/zod-resolver";
 import { isStudiqoApiError } from "@studiqo/api-client/errors";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -26,7 +26,7 @@ export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<OrgForm>({
-    resolver: zodResolver(createOrganizationFormSchema),
+    resolver: zodResolver<OrgForm>(createOrganizationFormSchema),
     defaultValues: { name: "", slug: "" },
   });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@/lib/zod-resolver";
 import { isStudiqoApiError } from "@studiqo/api-client/errors";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -30,7 +30,7 @@ export function LoginForm() {
     formState: { errors, isSubmitting },
     setValue,
   } = useForm<FormValues>({
-    resolver: zodResolver(loginFormSchema),
+    resolver: zodResolver<FormValues>(loginFormSchema),
     defaultValues: { email: "", password: "" },
   });
 

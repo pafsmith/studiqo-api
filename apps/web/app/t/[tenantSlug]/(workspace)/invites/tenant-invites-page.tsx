@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@/lib/zod-resolver";
 import { isStudiqoApiError } from "@studiqo/api-client/errors";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -59,7 +59,7 @@ export function TenantInvitesPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<InviteForm>({
-    resolver: zodResolver(inviteParentEmailSchema),
+    resolver: zodResolver<InviteForm>(inviteParentEmailSchema),
     defaultValues: { email: "" },
   });
 
