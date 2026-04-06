@@ -1,6 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
+
 import { TenantNav } from "@/components/tenant-nav";
+import { useOrganizationsQuery } from "@/lib/api/organizations-query";
 import { useSession } from "@/lib/auth/session";
 import { appShellUrl } from "@/lib/urls";
 
@@ -12,6 +15,11 @@ export function TenantChrome({
   children: React.ReactNode;
 }) {
   const { user, logout } = useSession();
+  const { data: orgs } = useOrganizationsQuery();
+  const activeOrg = useMemo(
+    () => orgs?.find((o) => o.slug === tenantSlug),
+    [orgs, tenantSlug],
+  );
 
   return (
     <div style={{ minHeight: "100vh", fontFamily: "system-ui, sans-serif" }}>
@@ -27,7 +35,12 @@ export function TenantChrome({
         }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <strong style={{ fontSize: 16 }}>{tenantSlug}</strong>
+          <strong style={{ fontSize: 16 }}>
+            {activeOrg?.name ?? tenantSlug}
+          </strong>
+          {activeOrg ? (
+            <span style={{ fontSize: 12, opacity: 0.65 }}>{activeOrg.slug}</span>
+          ) : null}
           <span style={{ fontSize: 13, opacity: 0.75 }}>
             {user?.email ?? "—"}
             {user?.role ? ` · ${user.role}` : null}

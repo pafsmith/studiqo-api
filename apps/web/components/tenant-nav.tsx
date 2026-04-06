@@ -35,7 +35,7 @@ export function TenantNav({
         <Link href={`${base}/invites`}>Invites</Link>
       ) : null}
       {role === "org_admin" || isSuperadmin ? (
-        <span style={{ opacity: 0.5 }}>More admin (Phase 4)</span>
+        <Link href={`${base}/organization`}>Members</Link>
       ) : null}
     </nav>
   );
