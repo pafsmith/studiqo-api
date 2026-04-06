@@ -3,11 +3,20 @@
 import type { components } from "@studiqo/api-client/generated";
 import { zodResolver } from "@/lib/zod-resolver";
 import { isStudiqoApiError } from "@studiqo/api-client/errors";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useLessonDetailQuery, useUpdateLessonMutation } from "@/lib/api/lessons-query";
 import { useOrganizationMembersQuery } from "@/lib/api/organization-members-query";
 import { useSubjectsListQuery } from "@/lib/api/subjects-query";
@@ -24,6 +33,13 @@ import {
   updateLessonFormSchema,
   type UpdateLessonForm,
 } from "@/lib/validation/lesson-forms";
+
+import {
+  LessonField,
+  LessonFormCard,
+  LessonFormPage,
+  LessonTextarea,
+} from "../../_components/lesson-form";
 
 type Lesson = components["schemas"]["Lesson"];
 type UpdateLessonBody = components["schemas"]["UpdateLessonRequest"];
@@ -107,75 +123,81 @@ export function TenantLessonEditPage() {
   }, [lesson, form]);
 
   const base = `/t/${tenantSlug}/lessons`;
+  const detailUrl = `${base}/${lessonId}`;
 
   if (!canManage) {
     return (
-      <main>
-        <h1 style={{ fontSize: 22 }}>Edit lesson</h1>
-        <p style={{ opacity: 0.85 }}>
-          Only organization admins can edit lessons.
-        </p>
-        <p>
-          <Link href={`${base}/${lessonId}`}>Back to lesson</Link>
-        </p>
-      </main>
+      <LessonFormPage title="Edit lesson" backHref={detailUrl} backLabel="Lesson">
+        <Alert>
+          <AlertDescription>
+            Only organization admins can edit lessons.
+          </AlertDescription>
+        </Alert>
+      </LessonFormPage>
     );
   }
 
   if (orgsLoading || !organizationId) {
     return (
-      <main>
-        <p>
-          <Link href={`${base}/${lessonId}`}>← Lesson</Link>
-        </p>
-        <p>Loading…</p>
-      </main>
+      <LessonFormPage
+        title="Edit lesson"
+        backHref={detailUrl}
+        backLabel="Lesson"
+        description="Update schedule details, tutor assignment, subject, or notes."
+      >
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      </LessonFormPage>
     );
   }
 
   if (lessonQ.isLoading) {
     return (
-      <main>
-        <p>
-          <Link href={`${base}/${lessonId}`}>← Lesson</Link>
-        </p>
-        <p>Loading lesson…</p>
-      </main>
+      <LessonFormPage
+        title="Edit lesson"
+        backHref={detailUrl}
+        backLabel="Lesson"
+        description="Update schedule details, tutor assignment, subject, or notes."
+      >
+        <p className="text-sm text-muted-foreground">Loading lesson…</p>
+      </LessonFormPage>
     );
   }
 
   if (lessonQ.error || !lesson) {
     return (
-      <main>
-        <p>
-          <Link href={base}>← Lessons</Link>
-        </p>
-        <p style={{ color: "#b91c1c" }}>
-          {lessonQ.error instanceof Error
-            ? lessonQ.error.message
-            : "Could not load lesson"}
-        </p>
-      </main>
+      <LessonFormPage title="Edit lesson" backHref={base}>
+        <Alert variant="destructive">
+          <AlertDescription>
+            {lessonQ.error instanceof Error
+              ? lessonQ.error.message
+              : "Could not load lesson"}
+          </AlertDescription>
+        </Alert>
+      </LessonFormPage>
     );
   }
 
   if (lesson.status !== "scheduled") {
     return (
-      <main>
-        <p>
-          <Link href={`${base}/${lessonId}`}>← Lesson</Link>
-        </p>
-        <h1 style={{ fontSize: 22 }}>Edit lesson</h1>
-        <p style={{ opacity: 0.85 }}>
-          Only scheduled lessons can be edited. This lesson is{" "}
-          <strong>{lesson.status}</strong>.
-        </p>
-      </main>
+      <LessonFormPage
+        title="Edit lesson"
+        backHref={detailUrl}
+        backLabel="Lesson"
+      >
+        <Alert>
+          <AlertDescription>
+            Only scheduled lessons can be edited. This lesson is{" "}
+            <strong>{lesson.status}</strong>.
+          </AlertDescription>
+        </Alert>
+      </LessonFormPage>
     );
   }
 
   const editingLesson = lesson;
   const tutors = membersQ.data?.filter((m) => m.role === "tutor") ?? [];
+  const referenceError = subjectsQ.error ?? membersQ.error ?? null;
+  const loadingRefs = subjectsQ.isLoading || membersQ.isLoading;
 
   async function onSubmit(values: UpdateLessonForm) {
     setFormError(null);
@@ -193,99 +215,156 @@ export function TenantLessonEditPage() {
     }
   }
 
-  const loadingRefs = subjectsQ.isLoading || membersQ.isLoading;
+  if (referenceError) {
+    return (
+      <LessonFormPage
+        title="Edit lesson"
+        backHref={detailUrl}
+        backLabel="Lesson"
+        description="Update schedule details, tutor assignment, subject, or notes."
+      >
+        <Alert variant="destructive">
+          <AlertDescription>
+            {referenceError instanceof Error
+              ? referenceError.message
+              : "Could not load lesson references"}
+          </AlertDescription>
+        </Alert>
+      </LessonFormPage>
+    );
+  }
 
   return (
-    <main style={{ maxWidth: 480 }}>
-      <p style={{ marginBottom: 16 }}>
-        <Link href={`${base}/${lesson.id}`}>← Lesson</Link>
-      </p>
-      <h1 style={{ fontSize: 22 }}>Edit lesson</h1>
+    <LessonFormPage
+      title="Edit lesson"
+      backHref={`${base}/${lesson.id}`}
+      backLabel="Lesson"
+      description="Update schedule details, tutor assignment, subject, or notes."
+    >
+      {loadingRefs ? (
+        <p className="text-sm text-muted-foreground">Loading references…</p>
+      ) : null}
 
-      {loadingRefs ? <p>Loading…</p> : null}
-
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}
+      <LessonFormCard
+        title="Lesson details"
+        description="Only changed fields are sent to the API."
       >
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>Tutor</span>
-          <select
-            {...form.register("tutorId")}
-            style={{ padding: 8, fontSize: 15 }}
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <LessonField label="Tutor" htmlFor="edit-lesson-tutor">
+            <Controller
+              control={form.control}
+              name="tutorId"
+              render={({ field }) => (
+                <Select
+                  value={field.value || undefined}
+                  onValueChange={field.onChange}
+                  disabled={loadingRefs}
+                >
+                  <SelectTrigger id="edit-lesson-tutor" className="w-full">
+                    <SelectValue placeholder="Select tutor…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tutors.map((member) => (
+                      <SelectItem key={member.userId} value={member.userId}>
+                        {formatOrgMemberOptionLabel(member)}
+                      </SelectItem>
+                    ))}
+                    {!tutors.some((member) => member.userId === editingLesson.tutorId) ? (
+                      <SelectItem value={editingLesson.tutorId}>
+                        Current tutor (id {editingLesson.tutorId.slice(0, 8)}…)
+                      </SelectItem>
+                    ) : null}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </LessonField>
+
+          <LessonField label="Subject" htmlFor="edit-lesson-subject">
+            <Controller
+              control={form.control}
+              name="subjectId"
+              render={({ field }) => (
+                <Select
+                  value={field.value || undefined}
+                  onValueChange={field.onChange}
+                  disabled={loadingRefs}
+                >
+                  <SelectTrigger id="edit-lesson-subject" className="w-full">
+                    <SelectValue placeholder="Select subject…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(subjectsQ.data ?? []).map((subject) => (
+                      <SelectItem key={subject.id} value={subject.id}>
+                        {subject.name}
+                      </SelectItem>
+                    ))}
+                    {!subjectsQ.data?.some((subject) => subject.id === editingLesson.subjectId) ? (
+                      <SelectItem value={editingLesson.subjectId}>
+                        Current subject (id {editingLesson.subjectId.slice(0, 8)}…)
+                      </SelectItem>
+                    ) : null}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </LessonField>
+
+          <LessonField
+            label="Starts"
+            htmlFor="edit-lesson-starts"
+            error={form.formState.errors.startsAtLocal?.message}
           >
-            {tutors.map((m) => (
-              <option key={m.userId} value={m.userId}>
-                {formatOrgMemberOptionLabel(m)}
-              </option>
-            ))}
-          </select>
-        </label>
+            <Input
+              id="edit-lesson-starts"
+              type="datetime-local"
+              {...form.register("startsAtLocal")}
+              aria-invalid={!!form.formState.errors.startsAtLocal}
+            />
+          </LessonField>
 
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>Subject</span>
-          <select
-            {...form.register("subjectId")}
-            style={{ padding: 8, fontSize: 15 }}
+          <LessonField
+            label="Ends"
+            htmlFor="edit-lesson-ends"
+            error={form.formState.errors.endsAtLocal?.message}
           >
-            {(subjectsQ.data ?? []).map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            <Input
+              id="edit-lesson-ends"
+              type="datetime-local"
+              {...form.register("endsAtLocal")}
+              aria-invalid={!!form.formState.errors.endsAtLocal}
+            />
+          </LessonField>
 
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>Starts</span>
-          <input
-            type="datetime-local"
-            {...form.register("startsAtLocal")}
-            style={{ padding: 8, fontSize: 15 }}
-          />
-        </label>
+          <LessonField label="Notes" htmlFor="edit-lesson-notes">
+            <LessonTextarea
+              id="edit-lesson-notes"
+              rows={4}
+              {...form.register("notes")}
+            />
+          </LessonField>
 
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>Ends</span>
-          <input
-            type="datetime-local"
-            {...form.register("endsAtLocal")}
-            style={{ padding: 8, fontSize: 15 }}
-          />
-        </label>
+          {form.formState.errors.root?.message ? (
+            <Alert variant="destructive">
+              <AlertDescription>{form.formState.errors.root.message}</AlertDescription>
+            </Alert>
+          ) : null}
 
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>Notes</span>
-          <textarea
-            {...form.register("notes")}
-            rows={4}
-            style={{ padding: 8, fontSize: 15 }}
-          />
-        </label>
+          {formError ? (
+            <Alert variant="destructive">
+              <AlertDescription>{formError}</AlertDescription>
+            </Alert>
+          ) : null}
 
-        {form.formState.errors.root ? (
-          <span style={{ color: "#b91c1c", fontSize: 13 }}>
-            {form.formState.errors.root.message}
-          </span>
-        ) : null}
-        {form.formState.errors.endsAtLocal ? (
-          <span style={{ color: "#b91c1c", fontSize: 13 }}>
-            {form.formState.errors.endsAtLocal.message}
-          </span>
-        ) : null}
-
-        {formError ? (
-          <p style={{ color: "#b91c1c", margin: 0 }}>{formError}</p>
-        ) : null}
-
-        <button
-          type="submit"
-          disabled={updateLesson.isPending || loadingRefs}
-          style={{ padding: "10px 14px", fontSize: 15, marginTop: 8 }}
-        >
-          {updateLesson.isPending ? "Saving…" : "Save changes"}
-        </button>
-      </form>
-    </main>
+          <Button
+            type="submit"
+            disabled={updateLesson.isPending || loadingRefs}
+            className="w-fit"
+          >
+            {updateLesson.isPending ? "Saving…" : "Save changes"}
+          </Button>
+        </form>
+      </LessonFormCard>
+    </LessonFormPage>
   );
 }
