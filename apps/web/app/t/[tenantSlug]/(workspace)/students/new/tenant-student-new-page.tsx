@@ -1,22 +1,42 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@/lib/zod-resolver";
 import { isStudiqoApiError } from "@studiqo/api-client/errors";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useCreateStudentMutation } from "@/lib/api/students-query";
 import { useOrganizationMembersQuery } from "@/lib/api/organization-members-query";
+import { formatOrgMemberOptionLabel } from "@/lib/format-org-member";
 import { useTenantOrganizationId } from "@/lib/hooks/use-tenant-organization";
 import { useSession } from "@/lib/auth/session";
 import { isOrgAdminOrSuperadmin } from "@/lib/tenant-role";
-import { formatOrgMemberOptionLabel } from "@/lib/format-org-member";
 import {
   createStudentFormSchema,
   type CreateStudentForm,
 } from "@/lib/validation/student-forms";
+
+const OPTIONAL_TUTOR_NONE = "__none__";
 
 export function TenantStudentNewPage() {
   const params = useParams<{ tenantSlug: string }>();
@@ -34,7 +54,7 @@ export function TenantStudentNewPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<CreateStudentForm>({
-    resolver: zodResolver(createStudentFormSchema),
+    resolver: zodResolver<CreateStudentForm>(createStudentFormSchema),
     defaultValues: {
       parentId: "",
       tutorId: "",
@@ -53,23 +73,27 @@ export function TenantStudentNewPage() {
 
   if (!canManage) {
     return (
-      <main>
-        <h1 style={{ fontSize: 22 }}>New student</h1>
-        <p style={{ opacity: 0.85 }}>
+      <main className="flex max-w-lg flex-col gap-4">
+        <h1 className="font-serif-display text-2xl font-semibold tracking-tight text-foreground">
+          New student
+        </h1>
+        <p className="text-sm text-muted-foreground">
           Only organization admins can create students.
         </p>
-        <p>
+        <Button variant="link" asChild className="h-auto w-fit p-0">
           <Link href={base}>Back to students</Link>
-        </p>
+        </Button>
       </main>
     );
   }
 
   if (orgsLoading || !organizationId) {
     return (
-      <main>
-        <h1 style={{ fontSize: 22 }}>New student</h1>
-        <p>Loading…</p>
+      <main className="flex max-w-lg flex-col gap-4">
+        <h1 className="font-serif-display text-2xl font-semibold tracking-tight text-foreground">
+          New student
+        </h1>
+        <p className="text-sm text-muted-foreground">Loading…</p>
       </main>
     );
   }
@@ -95,107 +119,157 @@ export function TenantStudentNewPage() {
   }
 
   return (
-    <main style={{ maxWidth: 480 }}>
-      <p style={{ marginBottom: 16 }}>
+    <main className="flex max-w-lg flex-col gap-6">
+      <Button variant="link" asChild className="h-auto w-fit justify-start p-0">
         <Link href={base}>← Students</Link>
-      </p>
-      <h1 style={{ fontSize: 22 }}>New student</h1>
+      </Button>
+      <h1 className="font-serif-display text-2xl font-semibold tracking-tight text-foreground">
+        New student
+      </h1>
 
-      {membersLoading ? <p>Loading members…</p> : null}
+      {membersLoading ? (
+        <p className="text-sm text-muted-foreground">Loading members…</p>
+      ) : null}
 
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}
-      >
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>Parent (member)</span>
-          <select
-            {...form.register("parentId")}
-            style={{ padding: 8, fontSize: 15 }}
+      <Card>
+        <CardHeader>
+          <CardTitle>Student details</CardTitle>
+          <CardDescription>
+            Link a parent member and optional tutor, then add name and date of
+            birth.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex flex-col gap-4"
           >
-            <option value="">Select parent user…</option>
-            {parents.map((m) => (
-              <option key={m.userId} value={m.userId}>
-                {formatOrgMemberOptionLabel(m)}
-              </option>
-            ))}
-          </select>
-          {form.formState.errors.parentId ? (
-            <span style={{ color: "#b91c1c", fontSize: 13 }}>
-              {form.formState.errors.parentId.message}
-            </span>
-          ) : null}
-        </label>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="new-student-parent">Parent (member)</Label>
+              <Controller
+                control={form.control}
+                name="parentId"
+                render={({ field }) => (
+                  <Select
+                    value={field.value || undefined}
+                    onValueChange={field.onChange}
+                    disabled={membersLoading}
+                  >
+                    <SelectTrigger
+                      id="new-student-parent"
+                      className="w-full"
+                      aria-invalid={!!form.formState.errors.parentId}
+                    >
+                      <SelectValue placeholder="Select parent user…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {parents.map((m) => (
+                        <SelectItem key={m.userId} value={m.userId}>
+                          {formatOrgMemberOptionLabel(m)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {form.formState.errors.parentId ? (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.parentId.message}
+                </p>
+              ) : null}
+            </div>
 
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>Tutor (optional)</span>
-          <select
-            {...form.register("tutorId")}
-            style={{ padding: 8, fontSize: 15 }}
-          >
-            <option value="">None</option>
-            {tutors.map((m) => (
-              <option key={m.userId} value={m.userId}>
-                {formatOrgMemberOptionLabel(m)}
-              </option>
-            ))}
-          </select>
-        </label>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="new-student-tutor">Tutor (optional)</Label>
+              <Controller
+                control={form.control}
+                name="tutorId"
+                render={({ field }) => (
+                  <Select
+                    value={
+                      field.value === "" ? OPTIONAL_TUTOR_NONE : field.value
+                    }
+                    onValueChange={(v) =>
+                      field.onChange(
+                        v === OPTIONAL_TUTOR_NONE ? "" : v,
+                      )
+                    }
+                    disabled={membersLoading}
+                  >
+                    <SelectTrigger id="new-student-tutor" className="w-full">
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={OPTIONAL_TUTOR_NONE}>None</SelectItem>
+                      {tutors.map((m) => (
+                        <SelectItem key={m.userId} value={m.userId}>
+                          {formatOrgMemberOptionLabel(m)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
 
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>First name</span>
-          <input
-            {...form.register("firstName")}
-            style={{ padding: 8, fontSize: 15 }}
-            autoComplete="given-name"
-          />
-          {form.formState.errors.firstName ? (
-            <span style={{ color: "#b91c1c", fontSize: 13 }}>
-              {form.formState.errors.firstName.message}
-            </span>
-          ) : null}
-        </label>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="new-student-first">First name</Label>
+              <Input
+                id="new-student-first"
+                {...form.register("firstName")}
+                autoComplete="given-name"
+              />
+              {form.formState.errors.firstName ? (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.firstName.message}
+                </p>
+              ) : null}
+            </div>
 
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>Last name</span>
-          <input
-            {...form.register("lastName")}
-            style={{ padding: 8, fontSize: 15 }}
-            autoComplete="family-name"
-          />
-          {form.formState.errors.lastName ? (
-            <span style={{ color: "#b91c1c", fontSize: 13 }}>
-              {form.formState.errors.lastName.message}
-            </span>
-          ) : null}
-        </label>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="new-student-last">Last name</Label>
+              <Input
+                id="new-student-last"
+                {...form.register("lastName")}
+                autoComplete="family-name"
+              />
+              {form.formState.errors.lastName ? (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.lastName.message}
+                </p>
+              ) : null}
+            </div>
 
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>Date of birth</span>
-          <input
-            type="date"
-            {...form.register("dateOfBirth")}
-            style={{ padding: 8, fontSize: 15 }}
-          />
-          {form.formState.errors.dateOfBirth ? (
-            <span style={{ color: "#b91c1c", fontSize: 13 }}>
-              {String(form.formState.errors.dateOfBirth.message)}
-            </span>
-          ) : null}
-        </label>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="new-student-dob">Date of birth</Label>
+              <Input
+                id="new-student-dob"
+                type="date"
+                {...form.register("dateOfBirth")}
+              />
+              {form.formState.errors.dateOfBirth ? (
+                <p className="text-xs text-destructive">
+                  {String(form.formState.errors.dateOfBirth.message)}
+                </p>
+              ) : null}
+            </div>
 
-        {formError ? (
-          <p style={{ color: "#b91c1c", margin: 0 }}>{formError}</p>
-        ) : null}
+            {formError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{formError}</AlertDescription>
+              </Alert>
+            ) : null}
 
-        <button
-          type="submit"
-          disabled={createStudent.isPending || membersLoading}
-          style={{ padding: "10px 14px", fontSize: 15, marginTop: 8 }}
-        >
-          {createStudent.isPending ? "Creating…" : "Create student"}
-        </button>
-      </form>
+            <Button
+              type="submit"
+              disabled={createStudent.isPending || membersLoading}
+              className="w-fit"
+            >
+              {createStudent.isPending ? "Creating…" : "Create student"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </main>
   );
 }

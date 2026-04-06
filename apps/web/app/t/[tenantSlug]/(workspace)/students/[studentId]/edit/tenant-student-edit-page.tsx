@@ -1,13 +1,31 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@/lib/zod-resolver";
 import type { components } from "@studiqo/api-client/generated";
 import { isStudiqoApiError } from "@studiqo/api-client/errors";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useOrganizationMembersQuery } from "@/lib/api/organization-members-query";
 import {
   useStudentDetailQuery,
@@ -32,6 +50,8 @@ function dateInputFromIso(iso: string): string {
   return `${y}-${m}-${day}`;
 }
 
+const OPTIONAL_TUTOR_NONE = "__none__";
+
 export function TenantStudentEditPage() {
   const params = useParams<{ tenantSlug: string; studentId: string }>();
   const { tenantSlug, studentId } = params;
@@ -52,7 +72,7 @@ export function TenantStudentEditPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<UpdateStudentForm>({
-    resolver: zodResolver(updateStudentFormSchema),
+    resolver: zodResolver<UpdateStudentForm>(updateStudentFormSchema),
     defaultValues: {},
   });
 
@@ -77,21 +97,27 @@ export function TenantStudentEditPage() {
 
   if (!canManage) {
     return (
-      <main>
-        <h1 style={{ fontSize: 22 }}>Edit student</h1>
-        <p style={{ opacity: 0.85 }}>Only organization admins can edit students.</p>
-        <p>
-          <Link href={detailUrl}>Back</Link>
+      <main className="flex max-w-lg flex-col gap-4">
+        <h1 className="font-serif-display text-2xl font-semibold tracking-tight text-foreground">
+          Edit student
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Only organization admins can edit students.
         </p>
+        <Button variant="link" asChild className="h-auto w-fit p-0">
+          <Link href={detailUrl}>Back</Link>
+        </Button>
       </main>
     );
   }
 
   if (orgsLoading || !organizationId) {
     return (
-      <main>
-        <h1 style={{ fontSize: 22 }}>Edit student</h1>
-        <p>Loading…</p>
+      <main className="flex max-w-lg flex-col gap-4">
+        <h1 className="font-serif-display text-2xl font-semibold tracking-tight text-foreground">
+          Edit student
+        </h1>
+        <p className="text-sm text-muted-foreground">Loading…</p>
       </main>
     );
   }
@@ -138,130 +164,177 @@ export function TenantStudentEditPage() {
 
   if (studentLoading) {
     return (
-      <main>
-        <p>
+      <main className="flex max-w-lg flex-col gap-4">
+        <Button variant="link" asChild className="h-auto w-fit justify-start p-0">
           <Link href={base}>← Students</Link>
-        </p>
-        <h1 style={{ fontSize: 22 }}>Edit student</h1>
-        <p>Loading…</p>
+        </Button>
+        <h1 className="font-serif-display text-2xl font-semibold tracking-tight text-foreground">
+          Edit student
+        </h1>
+        <p className="text-sm text-muted-foreground">Loading…</p>
       </main>
     );
   }
 
   if (!student) {
     return (
-      <main>
-        <p>
+      <main className="flex max-w-lg flex-col gap-4">
+        <Button variant="link" asChild className="h-auto w-fit justify-start p-0">
           <Link href={base}>← Students</Link>
-        </p>
-        <h1 style={{ fontSize: 22 }}>Edit student</h1>
-        <p>Student not found.</p>
+        </Button>
+        <h1 className="font-serif-display text-2xl font-semibold tracking-tight text-foreground">
+          Edit student
+        </h1>
+        <p className="text-sm text-muted-foreground">Student not found.</p>
       </main>
     );
   }
 
   return (
-    <main style={{ maxWidth: 480 }}>
-      <p style={{ marginBottom: 16 }}>
-        <Link href={detailUrl}>← {student.firstName} {student.lastName}</Link>
-      </p>
-      <h1 style={{ fontSize: 22 }}>Edit student</h1>
-      <p style={{ fontSize: 14, opacity: 0.8 }}>
+    <main className="flex max-w-lg flex-col gap-6">
+      <Button variant="link" asChild className="h-auto w-fit justify-start p-0">
+        <Link href={detailUrl}>
+          ← {student.firstName} {student.lastName}
+        </Link>
+      </Button>
+      <h1 className="font-serif-display text-2xl font-semibold tracking-tight text-foreground">
+        Edit student
+      </h1>
+      <p className="text-sm text-muted-foreground">
         Born {formatIsoDate(student.dateOfBirth)}
       </p>
 
-      {membersLoading ? <p>Loading members…</p> : null}
+      {membersLoading ? (
+        <p className="text-sm text-muted-foreground">Loading members…</p>
+      ) : null}
 
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}
-      >
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>Parent</span>
-          <select
-            {...form.register("parentId")}
-            style={{ padding: 8, fontSize: 15 }}
+      <Card>
+        <CardHeader>
+          <CardTitle>Membership & profile</CardTitle>
+          <CardDescription>
+            Update parent, tutor, name, or date of birth. Unchanged fields are
+            not sent to the API.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex flex-col gap-4"
           >
-            {parents.map((m) => (
-              <option key={m.userId} value={m.userId}>
-                {formatOrgMemberOptionLabel(m)}
-              </option>
-            ))}
-            {student &&
-            !parents.some((m) => m.userId === student.parentId) ? (
-              <option value={student.parentId}>
-                Current parent (id {student.parentId.slice(0, 8)}…)
-              </option>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="edit-student-parent">Parent</Label>
+              <Controller
+                control={form.control}
+                name="parentId"
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    disabled={membersLoading}
+                  >
+                    <SelectTrigger id="edit-student-parent" className="w-full">
+                      <SelectValue placeholder="Select parent…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {parents.map((m) => (
+                        <SelectItem key={m.userId} value={m.userId}>
+                          {formatOrgMemberOptionLabel(m)}
+                        </SelectItem>
+                      ))}
+                      {student &&
+                      !parents.some((m) => m.userId === student.parentId) ? (
+                        <SelectItem value={student.parentId}>
+                          Current parent (id {student.parentId.slice(0, 8)}…)
+                        </SelectItem>
+                      ) : null}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="edit-student-tutor">Tutor</Label>
+              <Controller
+                control={form.control}
+                name="tutorId"
+                render={({ field }) => (
+                  <Select
+                    value={
+                      field.value === "" ? OPTIONAL_TUTOR_NONE : field.value
+                    }
+                    onValueChange={(v) =>
+                      field.onChange(
+                        v === OPTIONAL_TUTOR_NONE ? "" : v,
+                      )
+                    }
+                    disabled={membersLoading}
+                  >
+                    <SelectTrigger id="edit-student-tutor" className="w-full">
+                      <SelectValue placeholder="No tutor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={OPTIONAL_TUTOR_NONE}>
+                        No tutor
+                      </SelectItem>
+                      {tutors.map((m) => (
+                        <SelectItem key={m.userId} value={m.userId}>
+                          {formatOrgMemberOptionLabel(m)}
+                        </SelectItem>
+                      ))}
+                      {student.tutorId &&
+                      !tutors.some((m) => m.userId === student.tutorId) ? (
+                        <SelectItem value={student.tutorId}>
+                          Current tutor (id {student.tutorId.slice(0, 8)}…)
+                        </SelectItem>
+                      ) : null}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="edit-student-first">First name</Label>
+              <Input id="edit-student-first" {...form.register("firstName")} />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="edit-student-last">Last name</Label>
+              <Input id="edit-student-last" {...form.register("lastName")} />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="edit-student-dob">Date of birth</Label>
+              <Input
+                id="edit-student-dob"
+                type="date"
+                {...form.register("dateOfBirth")}
+              />
+            </div>
+
+            {form.formState.errors.root ? (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.root.message}
+              </p>
             ) : null}
-          </select>
-        </label>
 
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>Tutor</span>
-          <select
-            {...form.register("tutorId")}
-            style={{ padding: 8, fontSize: 15 }}
-          >
-            {!student.tutorId ? (
-              <option value="">No tutor</option>
+            {formError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{formError}</AlertDescription>
+              </Alert>
             ) : null}
-            {tutors.map((m) => (
-              <option key={m.userId} value={m.userId}>
-                {formatOrgMemberOptionLabel(m)}
-              </option>
-            ))}
-            {student.tutorId &&
-            !tutors.some((m) => m.userId === student.tutorId) ? (
-              <option value={student.tutorId}>
-                Current tutor (id {student.tutorId.slice(0, 8)}…)
-              </option>
-            ) : null}
-          </select>
-        </label>
 
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>First name</span>
-          <input
-            {...form.register("firstName")}
-            style={{ padding: 8, fontSize: 15 }}
-          />
-        </label>
-
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>Last name</span>
-          <input
-            {...form.register("lastName")}
-            style={{ padding: 8, fontSize: 15 }}
-          />
-        </label>
-
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>Date of birth</span>
-          <input
-            type="date"
-            {...form.register("dateOfBirth")}
-            style={{ padding: 8, fontSize: 15 }}
-          />
-        </label>
-
-        {form.formState.errors.root ? (
-          <span style={{ color: "#b91c1c", fontSize: 13 }}>
-            {form.formState.errors.root.message}
-          </span>
-        ) : null}
-
-        {formError ? (
-          <p style={{ color: "#b91c1c", margin: 0 }}>{formError}</p>
-        ) : null}
-
-        <button
-          type="submit"
-          disabled={updateStudent.isPending}
-          style={{ padding: "10px 14px", fontSize: 15, marginTop: 8 }}
-        >
-          {updateStudent.isPending ? "Saving…" : "Save changes"}
-        </button>
-      </form>
+            <Button
+              type="submit"
+              disabled={updateStudent.isPending}
+              className="w-fit"
+            >
+              {updateStudent.isPending ? "Saving…" : "Save changes"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </main>
   );
 }

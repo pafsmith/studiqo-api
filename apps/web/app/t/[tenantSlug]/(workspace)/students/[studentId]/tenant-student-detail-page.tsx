@@ -1,11 +1,11 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@/lib/zod-resolver";
 import { isStudiqoApiError } from "@studiqo/api-client/errors";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 
 import {
   useCreateEmergencyContactMutation,
@@ -21,6 +21,24 @@ import {
   useCreateSubjectMutation,
   useSubjectsListQuery,
 } from "@/lib/api/subjects-query";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatIsoDate, formatIsoDateTime } from "@/lib/datetime";
 import { useTenantOrganizationId } from "@/lib/hooks/use-tenant-organization";
 import { useSession } from "@/lib/auth/session";
@@ -68,38 +86,42 @@ export function TenantStudentDetailPage() {
 
   if (orgsLoading || !organizationId) {
     return (
-      <main>
-        <p>
+      <main className="flex flex-col gap-4">
+        <Button variant="link" asChild className="h-auto w-fit justify-start p-0">
           <Link href={listUrl}>← Students</Link>
-        </p>
-        <p>Loading…</p>
+        </Button>
+        <p className="text-sm text-muted-foreground">Loading…</p>
       </main>
     );
   }
 
   if (studentQ.isLoading) {
     return (
-      <main>
-        <p>
+      <main className="flex flex-col gap-4">
+        <Button variant="link" asChild className="h-auto w-fit justify-start p-0">
           <Link href={listUrl}>← Students</Link>
-        </p>
-        <p>Loading student…</p>
+        </Button>
+        <p className="text-sm text-muted-foreground">Loading student…</p>
       </main>
     );
   }
 
   if (studentQ.error || !studentQ.data) {
     return (
-      <main>
-        <p>
+      <main className="flex flex-col gap-4">
+        <Button variant="link" asChild className="h-auto w-fit justify-start p-0">
           <Link href={listUrl}>← Students</Link>
-        </p>
-        <h1 style={{ fontSize: 22 }}>Student</h1>
-        <p style={{ color: "#b91c1c" }}>
-          {studentQ.error instanceof Error
-            ? studentQ.error.message
-            : "Student not found or access denied."}
-        </p>
+        </Button>
+        <h1 className="font-serif-display text-2xl font-semibold tracking-tight text-foreground">
+          Student
+        </h1>
+        <Alert variant="destructive">
+          <AlertDescription>
+            {studentQ.error instanceof Error
+              ? studentQ.error.message
+              : "Student not found or access denied."}
+          </AlertDescription>
+        </Alert>
       </main>
     );
   }
@@ -107,116 +129,136 @@ export function TenantStudentDetailPage() {
   const student = studentQ.data;
 
   return (
-    <main>
-      <p style={{ marginBottom: 8 }}>
+    <main className="flex flex-col gap-8">
+      <Button variant="link" asChild className="h-auto w-fit justify-start p-0">
         <Link href={listUrl}>← Students</Link>
-      </p>
+      </Button>
 
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 12,
-          alignItems: "baseline",
-          justifyContent: "space-between",
-        }}
-      >
-        <h1 style={{ fontSize: 22, margin: 0 }}>
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h1 className="font-serif-display text-2xl font-semibold tracking-tight text-foreground">
           {student.firstName} {student.lastName}
         </h1>
         {canManage ? (
-          <span style={{ display: "flex", gap: 12, fontSize: 14 }}>
-            <Link href={`${base}/${studentId}/edit`}>Edit</Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`${base}/${studentId}/edit`}>Edit</Link>
+            </Button>
             <DeleteStudentButton
               listUrl={listUrl}
               onDelete={() => deleteStudent.mutateAsync(studentId)}
               disabled={deleteStudent.isPending}
             />
-          </span>
+          </div>
         ) : null}
       </div>
 
-      <p style={{ fontSize: 15, opacity: 0.85 }}>
+      <p className="text-base text-muted-foreground">
         Born {formatIsoDate(student.dateOfBirth)}
       </p>
 
-      <section style={{ marginTop: 28 }}>
-        <h2 style={{ fontSize: 18 }}>Subjects</h2>
-        {subjectsQ.isLoading ? <p>Loading subjects…</p> : null}
-        {subjectsQ.error ? (
-          <p style={{ color: "#b91c1c" }}>
-            {subjectsQ.error instanceof Error
-              ? subjectsQ.error.message
-              : "Could not load subjects"}
-          </p>
-        ) : null}
-        {subjectsQ.data && subjectsQ.data.length === 0 ? (
-          <p style={{ opacity: 0.85 }}>No subjects linked yet.</p>
-        ) : null}
-        {subjectsQ.data && subjectsQ.data.length > 0 ? (
-          <ul style={{ paddingLeft: 20 }}>
-            {subjectsQ.data.map((row) => (
-              <li key={row.subjectId} style={{ marginBottom: 8 }}>
-                <strong>{row.subjectName}</strong>
-                {row.currentGrade != null || row.predictedGrade != null ? (
-                  <span style={{ opacity: 0.85 }}>
-                    {" "}
-                    — current: {row.currentGrade ?? "—"}, predicted:{" "}
-                    {row.predictedGrade ?? "—"}
-                  </span>
-                ) : null}
-                <div style={{ fontSize: 13, opacity: 0.65 }}>
-                  Updated {formatIsoDateTime(row.updatedAt)}
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : null}
+      <Card>
+        <CardHeader className="border-b">
+          <CardTitle>Subjects</CardTitle>
+          <CardDescription>
+            Linked subjects and grade notes for this student.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 pt-4">
+          {subjectsQ.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading subjects…</p>
+          ) : null}
+          {subjectsQ.error ? (
+            <Alert variant="destructive">
+              <AlertDescription>
+                {subjectsQ.error instanceof Error
+                  ? subjectsQ.error.message
+                  : "Could not load subjects"}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {subjectsQ.data && subjectsQ.data.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No subjects linked yet.
+            </p>
+          ) : null}
+          {subjectsQ.data && subjectsQ.data.length > 0 ? (
+            <ul className="m-0 flex list-none flex-col gap-3 p-0">
+              {subjectsQ.data.map((row) => (
+                <li key={row.subjectId} className="text-foreground">
+                  <strong className="font-semibold">{row.subjectName}</strong>
+                  {row.currentGrade != null || row.predictedGrade != null ? (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      — current: {row.currentGrade ?? "—"}, predicted:{" "}
+                      {row.predictedGrade ?? "—"}
+                    </span>
+                  ) : null}
+                  <div className="text-xs text-muted-foreground">
+                    Updated {formatIsoDateTime(row.updatedAt)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
 
-        {canManage ? (
-          <LinkSubjectBlock
-            studentId={studentId}
-            orgSubjects={orgSubjectsQ.data ?? []}
-            enrolledIds={enrolledSubjectIds}
-            linkSubject={linkSubject}
-            createSubject={createSubject}
-            subjectsLoading={orgSubjectsQ.isLoading}
-          />
-        ) : null}
-      </section>
+          {canManage ? (
+            <LinkSubjectBlock
+              studentId={studentId}
+              orgSubjects={orgSubjectsQ.data ?? []}
+              enrolledIds={enrolledSubjectIds}
+              linkSubject={linkSubject}
+              createSubject={createSubject}
+              subjectsLoading={orgSubjectsQ.isLoading}
+            />
+          ) : null}
+        </CardContent>
+      </Card>
 
-      <section style={{ marginTop: 28 }}>
-        <h2 style={{ fontSize: 18 }}>Emergency contacts</h2>
-        {contactsQ.isLoading ? <p>Loading contacts…</p> : null}
-        {contactsQ.error ? (
-          <p style={{ color: "#b91c1c" }}>
-            {contactsQ.error instanceof Error
-              ? contactsQ.error.message
-              : "Could not load contacts"}
-          </p>
-        ) : null}
-        {contactsQ.data && contactsQ.data.length === 0 ? (
-          <p style={{ opacity: 0.85 }}>No emergency contacts on file.</p>
-        ) : null}
-        {contactsQ.data?.map((c) => (
-          <EmergencyContactRow
-            key={c.id}
-            contact={c}
-            studentId={studentId}
-            canManage={canManage}
-            updateContact={updateContact}
-            deleteContact={deleteContact}
-          />
-        ))}
+      <Card>
+        <CardHeader className="border-b">
+          <CardTitle>Emergency contacts</CardTitle>
+          <CardDescription>
+            Up to two contacts on file for this student.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 pt-4">
+          {contactsQ.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading contacts…</p>
+          ) : null}
+          {contactsQ.error ? (
+            <Alert variant="destructive">
+              <AlertDescription>
+                {contactsQ.error instanceof Error
+                  ? contactsQ.error.message
+                  : "Could not load contacts"}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {contactsQ.data && contactsQ.data.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No emergency contacts on file.
+            </p>
+          ) : null}
+          {contactsQ.data?.map((c) => (
+            <EmergencyContactRow
+              key={c.id}
+              contact={c}
+              studentId={studentId}
+              canManage={canManage}
+              updateContact={updateContact}
+              deleteContact={deleteContact}
+            />
+          ))}
 
-        {canManage ? (
-          <AddEmergencyContactForm
-            studentId={studentId}
-            createContact={createContact}
-            contactCount={contactsQ.data?.length ?? 0}
-          />
-        ) : null}
-      </section>
+          {canManage ? (
+            <AddEmergencyContactForm
+              studentId={studentId}
+              createContact={createContact}
+              contactCount={contactsQ.data?.length ?? 0}
+            />
+          ) : null}
+        </CardContent>
+      </Card>
     </main>
   );
 }
@@ -236,25 +278,32 @@ function DeleteStudentButton({
 
   if (!confirmOpen) {
     return (
-      <button
+      <Button
         type="button"
-        style={{ fontSize: 14, color: "#b91c1c" }}
+        variant="destructive"
+        size="sm"
         onClick={() => setConfirmOpen(true)}
       >
         Delete
-      </button>
+      </Button>
     );
   }
 
   return (
-    <span style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <span style={{ fontSize: 13 }}>Delete this student?</span>
-      {err ? <span style={{ color: "#b91c1c", fontSize: 13 }}>{err}</span> : null}
-      <span style={{ display: "flex", gap: 8 }}>
-        <button
+    <span className="flex flex-col gap-2">
+      <span className="text-xs text-muted-foreground">
+        Delete this student?
+      </span>
+      {err ? (
+        <p className="text-xs text-destructive" role="alert">
+          {err}
+        </p>
+      ) : null}
+      <span className="flex flex-wrap gap-2">
+        <Button
           type="button"
+          size="sm"
           disabled={disabled}
-          style={{ fontSize: 14 }}
           onClick={() => {
             setErr(null);
             void (async () => {
@@ -269,17 +318,18 @@ function DeleteStudentButton({
           }}
         >
           {disabled ? "Deleting…" : "Confirm delete"}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          style={{ fontSize: 14 }}
+          variant="outline"
+          size="sm"
           onClick={() => {
             setConfirmOpen(false);
             setErr(null);
           }}
         >
           Cancel
-        </button>
+        </Button>
       </span>
     </span>
   );
@@ -303,7 +353,7 @@ function LinkSubjectBlock({
   const [formError, setFormError] = useState<string | null>(null);
   const [showNewSubject, setShowNewSubject] = useState(false);
   const form = useForm<LinkStudentSubjectForm>({
-    resolver: zodResolver(linkStudentSubjectFormSchema),
+    resolver: zodResolver<LinkStudentSubjectForm>(linkStudentSubjectFormSchema),
     defaultValues: {
       subjectId: "",
       currentGrade: "",
@@ -343,75 +393,102 @@ function LinkSubjectBlock({
   }
 
   return (
-    <div
-      style={{
-        marginTop: 16,
-        padding: 16,
-        border: "1px solid #e5e5e5",
-        borderRadius: 8,
-        maxWidth: 420,
-      }}
-    >
-      <h3 style={{ fontSize: 16, marginTop: 0 }}>Link a subject</h3>
-      {subjectsLoading ? <p style={{ fontSize: 14 }}>Loading subject list…</p> : null}
-      <form
-        onSubmit={form.handleSubmit(onLink)}
-        style={{ display: "flex", flexDirection: "column", gap: 12 }}
-      >
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>Subject</span>
-          <select
-            {...form.register("subjectId")}
-            style={{ padding: 8, fontSize: 15 }}
-          >
-            <option value="">Select…</option>
-            {available.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>Current grade (optional)</span>
-          <input {...form.register("currentGrade")} style={{ padding: 8 }} />
-        </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>Predicted grade (optional)</span>
-          <input {...form.register("predictedGrade")} style={{ padding: 8 }} />
-        </label>
-        {formError ? (
-          <p style={{ color: "#b91c1c", margin: 0, fontSize: 14 }}>{formError}</p>
+    <Card size="sm" className="bg-muted/30 ring-0">
+      <CardHeader>
+        <CardTitle className="text-sm">Link a subject</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {subjectsLoading ? (
+          <p className="text-sm text-muted-foreground">
+            Loading subject list…
+          </p>
         ) : null}
-        <button
-          type="submit"
-          disabled={linkSubject.isPending || available.length === 0}
-          style={{ padding: "8px 12px", alignSelf: "flex-start" }}
+        <form
+          onSubmit={form.handleSubmit(onLink)}
+          className="flex flex-col gap-3"
         >
-          {linkSubject.isPending ? "Linking…" : "Link subject"}
-        </button>
-      </form>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`link-subject-${studentId}`}>Subject</Label>
+            <Controller
+              control={form.control}
+              name="subjectId"
+              render={({ field }) => (
+                <Select
+                  value={field.value || undefined}
+                  onValueChange={field.onChange}
+                  disabled={subjectsLoading}
+                >
+                  <SelectTrigger
+                    id={`link-subject-${studentId}`}
+                    className="w-full max-w-full"
+                  >
+                    <SelectValue placeholder="Select…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {available.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`link-current-${studentId}`}>
+              Current grade (optional)
+            </Label>
+            <Input
+              id={`link-current-${studentId}`}
+              {...form.register("currentGrade")}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`link-predicted-${studentId}`}>
+              Predicted grade (optional)
+            </Label>
+            <Input
+              id={`link-predicted-${studentId}`}
+              {...form.register("predictedGrade")}
+            />
+          </div>
+          {formError ? (
+            <Alert variant="destructive">
+              <AlertDescription>{formError}</AlertDescription>
+            </Alert>
+          ) : null}
+          <Button
+            type="submit"
+            disabled={linkSubject.isPending || available.length === 0}
+            className="w-fit"
+          >
+            {linkSubject.isPending ? "Linking…" : "Link subject"}
+          </Button>
+        </form>
 
-      {available.length === 0 && !subjectsLoading ? (
-        <p style={{ fontSize: 14, opacity: 0.85, marginTop: 12 }}>
-          All subjects are linked, or the list is empty.
-        </p>
-      ) : null}
+        {available.length === 0 && !subjectsLoading ? (
+          <p className="text-sm text-muted-foreground">
+            All subjects are linked, or the list is empty.
+          </p>
+        ) : null}
 
-      <button
-        type="button"
-        style={{ marginTop: 12, fontSize: 14 }}
-        onClick={() => setShowNewSubject((v) => !v)}
-      >
-        {showNewSubject ? "Hide new subject" : "Create subject"}
-      </button>
-      {showNewSubject ? (
-        <CreateSubjectInline
-          createSubject={createSubject}
-          onCreated={() => setShowNewSubject(false)}
-        />
-      ) : null}
-    </div>
+        <Button
+          type="button"
+          variant="link"
+          className="h-auto w-fit justify-start p-0"
+          onClick={() => setShowNewSubject((v) => !v)}
+        >
+          {showNewSubject ? "Hide new subject" : "Create subject"}
+        </Button>
+        {showNewSubject ? (
+          <CreateSubjectInline
+            createSubject={createSubject}
+            onCreated={() => setShowNewSubject(false)}
+          />
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -424,7 +501,7 @@ function CreateSubjectInline({
 }) {
   const [err, setErr] = useState<string | null>(null);
   const form = useForm<CreateSubjectForm>({
-    resolver: zodResolver(createSubjectFormSchema),
+    resolver: zodResolver<CreateSubjectForm>(createSubjectFormSchema),
     defaultValues: { name: "" },
   });
 
@@ -443,27 +520,25 @@ function CreateSubjectInline({
   return (
     <form
       onSubmit={form.handleSubmit(onSubmit)}
-      style={{
-        marginTop: 12,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        maxWidth: 320,
-      }}
+      className="flex max-w-xs flex-col gap-3"
     >
-      <input
+      <Input
         {...form.register("name")}
         placeholder="Subject name"
-        style={{ padding: 8, fontSize: 15 }}
+        aria-label="New subject name"
       />
-      {err ? <span style={{ color: "#b91c1c", fontSize: 13 }}>{err}</span> : null}
-      <button
+      {err ? (
+        <p className="text-xs text-destructive" role="alert">
+          {err}
+        </p>
+      ) : null}
+      <Button
         type="submit"
         disabled={createSubject.isPending}
-        style={{ padding: "8px 12px", alignSelf: "flex-start" }}
+        className="w-fit"
       >
         {createSubject.isPending ? "Creating…" : "Create"}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -489,26 +564,24 @@ function EmergencyContactRow({
   const [editing, setEditing] = useState(false);
 
   return (
-    <div
-      style={{
-        marginTop: 12,
-        padding: 12,
-        border: "1px solid #eee",
-        borderRadius: 6,
-        maxWidth: 440,
-      }}
-    >
+    <div className="rounded-lg border border-border bg-card p-3">
       {!editing ? (
         <>
-          <div>
-            <strong>{contact.name}</strong> — {contact.relationship}
+          <div className="text-foreground">
+            <strong className="font-semibold">{contact.name}</strong> —{" "}
+            {contact.relationship}
           </div>
-          <div style={{ fontSize: 14, opacity: 0.85 }}>{contact.phone}</div>
+          <div className="text-sm text-muted-foreground">{contact.phone}</div>
           {canManage ? (
-            <div style={{ marginTop: 8, display: "flex", gap: 12, fontSize: 14 }}>
-              <button type="button" onClick={() => setEditing(true)}>
+            <div className="mt-2 flex flex-wrap gap-3">
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto p-0 text-sm"
+                onClick={() => setEditing(true)}
+              >
                 Edit
-              </button>
+              </Button>
               <DeleteContactButton
                 onDelete={() =>
                   deleteContact.mutateAsync({
@@ -544,17 +617,28 @@ function DeleteContactButton({
   const [err, setErr] = useState<string | null>(null);
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)}>
+      <Button
+        type="button"
+        variant="destructive"
+        size="sm"
+        className="h-auto px-0 text-sm"
+        onClick={() => setOpen(true)}
+      >
         Delete
-      </button>
+      </Button>
     );
   }
   return (
-    <span style={{ display: "inline-flex", flexDirection: "column", gap: 4 }}>
-      {err ? <span style={{ color: "#b91c1c" }}>{err}</span> : null}
-      <span style={{ display: "flex", gap: 8 }}>
-        <button
+    <span className="inline-flex flex-col gap-2">
+      {err ? (
+        <p className="text-xs text-destructive" role="alert">
+          {err}
+        </p>
+      ) : null}
+      <span className="flex flex-wrap gap-2">
+        <Button
           type="button"
+          size="sm"
           disabled={disabled}
           onClick={() => {
             setErr(null);
@@ -569,10 +653,15 @@ function DeleteContactButton({
           }}
         >
           {disabled ? "…" : "Confirm"}
-        </button>
-        <button type="button" onClick={() => setOpen(false)}>
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setOpen(false)}
+        >
           Cancel
-        </button>
+        </Button>
       </span>
     </span>
   );
@@ -591,7 +680,9 @@ function EditEmergencyContactForm({
 }) {
   const [err, setErr] = useState<string | null>(null);
   const form = useForm<UpdateEmergencyContactForm>({
-    resolver: zodResolver(updateEmergencyContactFormSchema),
+    resolver: zodResolver<UpdateEmergencyContactForm>(
+      updateEmergencyContactFormSchema,
+    ),
     defaultValues: {
       name: contact.name,
       phone: contact.phone,
@@ -628,19 +719,23 @@ function EditEmergencyContactForm({
   return (
     <form
       onSubmit={form.handleSubmit(onSubmit)}
-      style={{ display: "flex", flexDirection: "column", gap: 10 }}
+      className="flex flex-col gap-3"
     >
-      <input {...form.register("name")} style={{ padding: 8 }} />
-      <input {...form.register("phone")} style={{ padding: 8 }} />
-      <input {...form.register("relationship")} style={{ padding: 8 }} />
-      {err ? <span style={{ color: "#b91c1c", fontSize: 13 }}>{err}</span> : null}
-      <span style={{ display: "flex", gap: 8 }}>
-        <button type="submit" disabled={updateContact.isPending}>
+      <Input {...form.register("name")} aria-label="Contact name" />
+      <Input {...form.register("phone")} aria-label="Phone" />
+      <Input {...form.register("relationship")} aria-label="Relationship" />
+      {err ? (
+        <p className="text-xs text-destructive" role="alert">
+          {err}
+        </p>
+      ) : null}
+      <span className="flex flex-wrap gap-2">
+        <Button type="submit" disabled={updateContact.isPending} size="sm">
           {updateContact.isPending ? "Saving…" : "Save"}
-        </button>
-        <button type="button" onClick={onCancel}>
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </span>
     </form>
   );
@@ -657,13 +752,15 @@ function AddEmergencyContactForm({
 }) {
   const [err, setErr] = useState<string | null>(null);
   const form = useForm<CreateEmergencyContactForm>({
-    resolver: zodResolver(createEmergencyContactFormSchema),
+    resolver: zodResolver<CreateEmergencyContactForm>(
+      createEmergencyContactFormSchema,
+    ),
     defaultValues: { name: "", phone: "", relationship: "" },
   });
 
   if (contactCount >= 2) {
     return (
-      <p style={{ fontSize: 14, opacity: 0.85, marginTop: 16 }}>
+      <p className="text-sm text-muted-foreground">
         Maximum of two emergency contacts reached.
       </p>
     );
@@ -686,31 +783,35 @@ function AddEmergencyContactForm({
   }
 
   return (
-    <form
-      onSubmit={form.handleSubmit(onSubmit)}
-      style={{
-        marginTop: 20,
-        padding: 16,
-        border: "1px solid #e5e5e5",
-        borderRadius: 8,
-        maxWidth: 420,
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-      }}
-    >
-      <h3 style={{ fontSize: 16, margin: 0 }}>Add emergency contact</h3>
-      <input {...form.register("name")} placeholder="Name" style={{ padding: 8 }} />
-      <input {...form.register("phone")} placeholder="Phone" style={{ padding: 8 }} />
-      <input
-        {...form.register("relationship")}
-        placeholder="Relationship"
-        style={{ padding: 8 }}
-      />
-      {err ? <span style={{ color: "#b91c1c", fontSize: 13 }}>{err}</span> : null}
-      <button type="submit" disabled={createContact.isPending}>
-        {createContact.isPending ? "Adding…" : "Add contact"}
-      </button>
-    </form>
+    <Card size="sm" className="bg-muted/30 ring-0">
+      <CardHeader>
+        <CardTitle className="text-sm">Add emergency contact</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex flex-col gap-3"
+        >
+          <Input {...form.register("name")} placeholder="Name" />
+          <Input {...form.register("phone")} placeholder="Phone" />
+          <Input
+            {...form.register("relationship")}
+            placeholder="Relationship"
+          />
+          {err ? (
+            <p className="text-xs text-destructive" role="alert">
+              {err}
+            </p>
+          ) : null}
+          <Button
+            type="submit"
+            disabled={createContact.isPending}
+            className="w-fit"
+          >
+            {createContact.isPending ? "Adding…" : "Add contact"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

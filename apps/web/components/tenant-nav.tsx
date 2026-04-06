@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { Button } from "@/components/ui/button";
+
 import type { components } from "@studiqo/api-client/generated";
 
 type Role = components["schemas"]["OrganizationMembershipRole"] | undefined;
@@ -42,22 +44,24 @@ export function TenantNav({
   }
 
   return (
-    <div className="border-b border-line bg-canvas px-6 md:px-8">
+    <div className="border-b bg-muted/40 px-4 md:px-6">
       <nav aria-label="Workspace">
-        <ul className="m-0 flex list-none flex-wrap gap-1.5 px-0 py-3">
-          {items.map(({ href, label }) => (
-            <li key={href} className="m-0">
-              <Link
-                href={href}
-                className="app-nav-link"
-                aria-current={
-                  pathMatchesNavItem(pathname, base, href) ? "page" : undefined
-                }
-              >
-                {label}
-              </Link>
-            </li>
-          ))}
+        <ul className="m-0 flex list-none flex-wrap gap-1 px-0 py-2.5">
+          {items.map(({ href, label }) => {
+            const active = pathMatchesNavItem(pathname, base, href);
+            return (
+              <li key={href} className="m-0">
+                <Button variant={active ? "secondary" : "ghost"} size="sm" asChild>
+                  <Link
+                    href={href}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    {label}
+                  </Link>
+                </Button>
+              </li>
+            );
+          })}
         </ul>
       </nav>
     </div>

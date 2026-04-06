@@ -3,8 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { useSession } from "@/lib/auth/session";
 import { appShellUrl } from "@/lib/urls";
+
+function navActive(pathname: string, prefix: string) {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
 
 export function AppShellHeader() {
   const pathname = usePathname() ?? "";
@@ -13,63 +19,78 @@ export function AppShellHeader() {
   const loading = authStatus === "loading";
 
   return (
-    <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line bg-surface px-6 py-4 md:items-center md:px-8">
-      <div className="flex flex-wrap items-center gap-5">
-        <Link href="/" className="app-brand-link font-serif-display">
-          Studiqo
-        </Link>
-        <nav aria-label="App">
-          <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
-            <li className="m-0">
-              <Link
-                href="/onboarding"
-                className="app-nav-link app-nav-link--on-surface"
-                aria-current={
-                  pathname === "/onboarding" || pathname.startsWith("/onboarding/")
-                    ? "page"
-                    : undefined
-                }
+    <header className="flex flex-wrap items-center justify-between gap-4 border-b bg-background px-4 py-3 md:px-6">
+      <div className="flex flex-wrap items-center gap-1 md:gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          asChild
+          className="font-serif-display px-2 text-lg font-semibold tracking-tight"
+        >
+          <Link href="/">Studiqo</Link>
+        </Button>
+        <Separator orientation="vertical" className="hidden h-6 md:block" />
+        <nav className="flex flex-wrap items-center gap-1" aria-label="App">
+          <Button
+            variant={
+              navActive(pathname, "/onboarding") ? "secondary" : "ghost"
+            }
+            size="sm"
+            asChild
+          >
+            <Link
+              href="/onboarding"
+              aria-current={
+                navActive(pathname, "/onboarding") ? "page" : undefined
+              }
+            >
+              Organizations
+            </Link>
+          </Button>
+          {loading ? null : !authed ? (
+            <>
+              <Button
+                variant={pathname === "/login" ? "secondary" : "ghost"}
+                size="sm"
+                asChild
               >
-                Organizations
-              </Link>
-            </li>
-            {loading ? null : authed ? null : (
-              <>
-                <li className="m-0">
-                  <Link
-                    href="/login"
-                    className="app-nav-link app-nav-link--on-surface"
-                    aria-current={pathname === "/login" ? "page" : undefined}
-                  >
-                    Log in
-                  </Link>
-                </li>
-                <li className="m-0">
-                  <Link
-                    href="/register"
-                    className="app-nav-link app-nav-link--on-surface"
-                    aria-current={pathname === "/register" ? "page" : undefined}
-                  >
-                    Register
-                  </Link>
-                </li>
-              </>
-            )}
-          </ul>
+                <Link
+                  href="/login"
+                  aria-current={pathname === "/login" ? "page" : undefined}
+                >
+                  Log in
+                </Link>
+              </Button>
+              <Button
+                variant={pathname === "/register" ? "secondary" : "ghost"}
+                size="sm"
+                asChild
+              >
+                <Link
+                  href="/register"
+                  aria-current={
+                    pathname === "/register" ? "page" : undefined
+                  }
+                >
+                  Register
+                </Link>
+              </Button>
+            </>
+          ) : null}
         </nav>
       </div>
       {loading ? (
-        <span className="text-[0.8125rem] text-ink-faint">Session…</span>
+        <span className="text-xs text-muted-foreground">Session…</span>
       ) : authed ? (
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className="text-sm leading-snug text-ink-muted">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm leading-snug text-muted-foreground">
             {user?.email ?? "—"}
             {user?.role ? ` · ${user.role}` : null}
             {user?.isSuperadmin ? " · superadmin" : null}
           </span>
-          <button
+          <Button
             type="button"
-            className="app-btn app-btn-primary"
+            size="sm"
             onClick={() => {
               void (async () => {
                 await logout();
@@ -78,7 +99,7 @@ export function AppShellHeader() {
             }}
           >
             Log out
-          </button>
+          </Button>
         </div>
       ) : null}
     </header>
