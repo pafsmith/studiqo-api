@@ -57,7 +57,12 @@ export const usersService = {
       });
     }
 
-    const updated = await usersRepository.updateUser(userId, patch);
+    // Role-only updates mutate membership only; `patch` stays empty. Running
+    // `updateUser` with `{}` produces invalid SQL (UPDATE … SET with no columns).
+    const updated =
+      Object.keys(patch).length > 0
+        ? await usersRepository.updateUser(userId, patch)
+        : await usersRepository.getUserById(userId);
     if (!updated) {
       throw new NotFoundError("User not found");
     }
