@@ -4,7 +4,7 @@ import { AppShellHeader } from "@/components/app-shell-header";
 
 export default function AppShellLayout({ children }: { children: ReactNode }) {
   return (
-    <div style={{ minHeight: "100vh", fontFamily: "system-ui, sans-serif" }}>
+    <div className="min-h-screen">
       <AppShellHeader />
       {children}
     </div>

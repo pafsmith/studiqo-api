@@ -1,64 +1,75 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { useSession } from "@/lib/auth/session";
 import { appShellUrl } from "@/lib/urls";
 
 export function AppShellHeader() {
+  const pathname = usePathname() ?? "";
   const { user, authStatus, logout } = useSession();
   const authed = authStatus === "authenticated";
   const loading = authStatus === "loading";
 
   return (
-    <header
-      style={{
-        padding: "12px 20px",
-        borderBottom: "1px solid #e5e5e5",
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 12,
-        alignItems: "center",
-        justifyContent: "space-between",
-      }}
-    >
-      <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-        <Link
-          href="/"
-          style={{ fontWeight: 600, color: "#111", textDecoration: "none" }}
-        >
+    <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line bg-surface px-6 py-4 md:items-center md:px-8">
+      <div className="flex flex-wrap items-center gap-5">
+        <Link href="/" className="app-brand-link font-serif-display">
           Studiqo
         </Link>
-        <nav style={{ display: "flex", gap: 12, fontSize: 14 }}>
-          <Link href="/onboarding">Organizations</Link>
-          {loading ? null : authed ? null : (
-            <>
-              <Link href="/login">Log in</Link>
-              <Link href="/register">Register</Link>
-            </>
-          )}
+        <nav aria-label="App">
+          <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+            <li className="m-0">
+              <Link
+                href="/onboarding"
+                className="app-nav-link app-nav-link--on-surface"
+                aria-current={
+                  pathname === "/onboarding" || pathname.startsWith("/onboarding/")
+                    ? "page"
+                    : undefined
+                }
+              >
+                Organizations
+              </Link>
+            </li>
+            {loading ? null : authed ? null : (
+              <>
+                <li className="m-0">
+                  <Link
+                    href="/login"
+                    className="app-nav-link app-nav-link--on-surface"
+                    aria-current={pathname === "/login" ? "page" : undefined}
+                  >
+                    Log in
+                  </Link>
+                </li>
+                <li className="m-0">
+                  <Link
+                    href="/register"
+                    className="app-nav-link app-nav-link--on-surface"
+                    aria-current={pathname === "/register" ? "page" : undefined}
+                  >
+                    Register
+                  </Link>
+                </li>
+              </>
+            )}
+          </ul>
         </nav>
       </div>
       {loading ? (
-        <span style={{ fontSize: 13, opacity: 0.6 }}>Session…</span>
+        <span className="text-[0.8125rem] text-ink-faint">Session…</span>
       ) : authed ? (
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 12,
-            alignItems: "center",
-            fontSize: 14,
-          }}
-        >
-          <span style={{ opacity: 0.85 }}>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span className="text-sm leading-snug text-ink-muted">
             {user?.email ?? "—"}
             {user?.role ? ` · ${user.role}` : null}
             {user?.isSuperadmin ? " · superadmin" : null}
           </span>
           <button
             type="button"
-            style={{ padding: "8px 12px", fontSize: 14 }}
+            className="app-btn app-btn-primary"
             onClick={() => {
               void (async () => {
                 await logout();
