@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useSession } from "@/lib/auth/session";
 
+import { invalidateTenantScopedQueries } from "./invalidate-tenant-queries";
+
 export const organizationQueryKey = ["organizations"] as const;
 
 export function useOrganizationsQuery() {
@@ -47,6 +49,7 @@ export function useSetActiveOrganizationMutation() {
       setAccessToken(data.token);
       await refetchUser();
       void queryClient.invalidateQueries({ queryKey: organizationQueryKey });
+      invalidateTenantScopedQueries(queryClient);
     },
   });
 }
