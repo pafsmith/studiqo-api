@@ -6,6 +6,16 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCancelLessonMutation,
   useCompleteLessonMutation,
@@ -18,6 +28,11 @@ import { formatIsoDateTime } from "@/lib/datetime";
 import { useTenantOrganizationId } from "@/lib/hooks/use-tenant-organization";
 import { useSession } from "@/lib/auth/session";
 import { isOrgAdminOrSuperadmin } from "@/lib/tenant-role";
+
+import {
+  LessonPageHeader,
+  LessonSummaryCard,
+} from "../_components/lesson-ui";
 
 type Student = components["schemas"]["Student"];
 type Subject = components["schemas"]["Subject"];
@@ -74,37 +89,39 @@ export function TenantLessonDetailPage() {
 
   if (orgsLoading || !organizationId) {
     return (
-      <main>
-        <p>
-          <Link href={listUrl}>← Lessons</Link>
-        </p>
-        <p>Loading…</p>
+      <main className="flex max-w-2xl flex-col gap-4">
+        <LessonPageHeader backHref={listUrl} title="Lesson" />
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-28 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
       </main>
     );
   }
 
   if (lessonQ.isLoading) {
     return (
-      <main>
-        <p>
-          <Link href={listUrl}>← Lessons</Link>
-        </p>
-        <p>Loading lesson…</p>
+      <main className="flex max-w-2xl flex-col gap-4">
+        <LessonPageHeader backHref={listUrl} title="Lesson" />
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-28 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
       </main>
     );
   }
 
   if (lessonQ.error) {
     return (
-      <main>
-        <p>
-          <Link href={listUrl}>← Lessons</Link>
-        </p>
-        <p style={{ color: "#b91c1c" }}>
-          {lessonQ.error instanceof Error
-            ? lessonQ.error.message
-            : "Could not load lesson"}
-        </p>
+      <main className="flex max-w-2xl flex-col gap-4">
+        <LessonPageHeader backHref={listUrl} title="Lesson" />
+        <Alert variant="destructive">
+          <AlertDescription>
+            {lessonQ.error instanceof Error
+              ? lessonQ.error.message
+              : "Could not load lesson"}
+          </AlertDescription>
+        </Alert>
       </main>
     );
   }
@@ -112,11 +129,11 @@ export function TenantLessonDetailPage() {
   const lesson = lessonQ.data;
   if (!lesson) {
     return (
-      <main>
-        <p>
-          <Link href={listUrl}>← Lessons</Link>
-        </p>
-        <p>Lesson not found.</p>
+      <main className="flex max-w-2xl flex-col gap-4">
+        <LessonPageHeader backHref={listUrl} title="Lesson" />
+        <Alert variant="destructive">
+          <AlertDescription>Lesson not found.</AlertDescription>
+        </Alert>
       </main>
     );
   }
@@ -134,6 +151,8 @@ export function TenantLessonDetailPage() {
   const canCompleteOrCancel = canTryLifecycle && !terminal;
   const mutating = completeMut.isPending || cancelMut.isPending;
   const lessonIdStable = lesson.id;
+  const metadataError =
+    studentsQ.error ?? subjectsQ.error ?? membersQ.error ?? null;
 
   async function onComplete() {
     setActionError(null);
@@ -158,71 +177,103 @@ export function TenantLessonDetailPage() {
   const canEdit = isAdmin && lesson.status === "scheduled";
 
   return (
-    <main style={{ maxWidth: 560 }}>
-      <p style={{ marginBottom: 16 }}>
-        <Link href={listUrl}>← Lessons</Link>
-      </p>
-      <h1 style={{ fontSize: 22, marginTop: 0 }}>Lesson</h1>
-      <p style={{ fontSize: 15, opacity: 0.9 }}>
-        <strong>{formatIsoDateTime(lesson.startsAt)}</strong>
-        {" → "}
-        <strong>{formatIsoDateTime(lesson.endsAt)}</strong>
-      </p>
-      <p style={{ fontSize: 15 }}>
-        Status: <strong>{lesson.status}</strong>
-      </p>
-      <ul style={{ fontSize: 15, lineHeight: 1.6, paddingLeft: 20 }}>
-        <li>Student: {studentLabel}</li>
-        <li>Subject: {subjectLabel}</li>
-        <li>Tutor: {tutorLabel}</li>
-        <li>
-          Notes:{" "}
-          {lesson.notes === null || lesson.notes === ""
-            ? "—"
-            : lesson.notes}
-        </li>
-      </ul>
+    <main className="flex max-w-2xl flex-col gap-6">
+      <LessonPageHeader
+        backHref={listUrl}
+        title="Lesson"
+        description={
+          <>
+            <span>{formatIsoDateTime(lesson.startsAt)}</span>
+            <span> → </span>
+            <span>{formatIsoDateTime(lesson.endsAt)}</span>
+          </>
+        }
+        actions={
+          canEdit ? (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`${base}/${lesson.id}/edit`}>Edit lesson</Link>
+            </Button>
+          ) : null
+        }
+      />
 
-      {canTryLifecycle ? (
-        <div style={{ marginTop: 20, display: "flex", flexWrap: "wrap", gap: 10 }}>
-          <button
-            type="button"
-            onClick={() => void onComplete()}
-            disabled={!canCompleteOrCancel || mutating}
-          >
-            {completeMut.isPending ? "Completing…" : "Mark complete"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void onCancel()}
-            disabled={!canCompleteOrCancel || mutating}
-          >
-            {cancelMut.isPending ? "Cancelling…" : "Cancel lesson"}
-          </button>
-        </div>
+      {studentsQ.isLoading || subjectsQ.isLoading || membersQ.isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading lesson metadata…</p>
       ) : null}
 
-      {terminal && canTryLifecycle ? (
-        <p style={{ fontSize: 14, opacity: 0.8, marginTop: 12 }}>
-          This lesson is finished; complete and cancel are not available.
-        </p>
+      {metadataError ? (
+        <Alert>
+          <AlertDescription>
+            Some related lesson labels could not be loaded. Stored ids will be
+            shown where needed.
+          </AlertDescription>
+        </Alert>
       ) : null}
 
-      {actionError ? (
-        <p style={{ color: "#b91c1c", marginTop: 12 }}>{actionError}</p>
-      ) : null}
+      <LessonSummaryCard
+        startsAt={lesson.startsAt}
+        endsAt={lesson.endsAt}
+        status={lesson.status}
+        studentLabel={studentLabel}
+        subjectLabel={subjectLabel}
+        tutorLabel={tutorLabel}
+        notes={lesson.notes}
+      />
 
-      {isAdmin ? (
-        <p style={{ marginTop: 20 }}>
-          {canEdit ? (
-            <Link href={`${base}/${lesson.id}/edit`}>Edit lesson</Link>
-          ) : (
-            <span style={{ fontSize: 14, opacity: 0.85 }}>
-              Only scheduled lessons can be edited.
-            </span>
-          )}
-        </p>
-      ) : null}
+      {(canTryLifecycle || isAdmin || actionError) && (
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle>Actions</CardTitle>
+            <CardDescription>
+              Update the lesson lifecycle once the session outcome is known.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4 pt-4">
+            {canTryLifecycle ? (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  onClick={() => void onComplete()}
+                  disabled={!canCompleteOrCancel || mutating}
+                >
+                  {completeMut.isPending ? "Completing…" : "Mark complete"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => void onCancel()}
+                  disabled={!canCompleteOrCancel || mutating}
+                >
+                  {cancelMut.isPending ? "Cancelling…" : "Cancel lesson"}
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Lesson lifecycle updates are only available to organization
+                admins and tutors.
+              </p>
+            )}
+
+            {terminal && canTryLifecycle ? (
+              <p className="text-sm text-muted-foreground">
+                This lesson is finished; complete and cancel are not available.
+              </p>
+            ) : null}
+
+            {isAdmin && !canEdit ? (
+              <p className="text-sm text-muted-foreground">
+                Only scheduled lessons can be edited.
+              </p>
+            ) : null}
+
+            {actionError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{actionError}</AlertDescription>
+              </Alert>
+            ) : null}
+          </CardContent>
+        </Card>
+      )}
     </main>
   );
 }
